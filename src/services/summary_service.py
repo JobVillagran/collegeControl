@@ -16,41 +16,47 @@ from src.utils.file_utils import write_json, write_text
 
 class SummaryService:
     def build_payload(self, changes: dict) -> dict:
-        upcoming = changes.get("upcoming_assignments", [])
+        groups = changes.get("actionable_groups", {})
 
-        open_assignments = [item for item in upcoming if item.get("status") in {"open", "open_no_due_date"}]
-        not_enabled_yet = [item for item in upcoming if item.get("status") == "not_enabled_yet"]
-
-        act_now = [self._decorate_card(item) for item in open_assignments if item.get("urgency_key") == "act_now"]
-        less_than_24h = [self._decorate_card(item) for item in open_assignments if item.get("urgency_key") == "less_than_24h"]
-        two_to_three_days = [self._decorate_card(item) for item in open_assignments if item.get("urgency_key") == "two_to_three_days"]
-        this_week = [self._decorate_card(item) for item in open_assignments if item.get("urgency_key") == "this_week"]
-        no_due_date = [self._decorate_card(item) for item in open_assignments if item.get("urgency_key") == "no_due_date"]
-        opens_later = [self._decorate_card(item) for item in not_enabled_yet]
+        act_now = [self._decorate_card(item) for item in groups.get("act_now", [])]
+        this_week = [self._decorate_card(item) for item in groups.get("this_week", [])]
+        next_week = [self._decorate_card(item) for item in groups.get("next_week", [])]
+        third_week = [self._decorate_card(item) for item in groups.get("third_week", [])]
+        urgent_projects = [self._decorate_card(item) for item in groups.get("urgent_projects", [])]
+        opens_same_day = [self._decorate_card(item) for item in groups.get("opens_same_day", [])]
+        no_due_date = [self._decorate_card(item) for item in groups.get("no_due_date", [])]
 
         new_grades = [self._decorate_grade_card(item) for item in changes.get("new_grades", [])]
         changed_assignments = [self._decorate_changed_card(item) for item in changes.get("changed_assignments", [])]
-        new_assignments = [self._decorate_card(item) for item in changes.get("new_assignments", [])]
 
-        total_actionable = len(open_assignments)
-        total_urgent = len(act_now) + len(less_than_24h)
+        total_actionable = (
+            len(act_now)
+            + len(this_week)
+            + len(next_week)
+            + len(third_week)
+            + len(no_due_date)
+        )
+
+        total_urgent = len(act_now)
+        total_opens_soon = len(opens_same_day)
 
         return {
             "generated_at": self._format_now(),
             "summary_stats": {
                 "total_actionable": total_actionable,
                 "total_urgent": total_urgent,
-                "not_enabled_yet": len(opens_later),
+                "opens_soon": total_opens_soon,
+                "urgent_projects": len(urgent_projects),
                 "new_grades": len(new_grades),
             },
             "sections": {
                 "act_now": act_now,
-                "less_than_24h": less_than_24h,
-                "two_to_three_days": two_to_three_days,
                 "this_week": this_week,
+                "next_week": next_week,
+                "third_week": third_week,
+                "urgent_projects": urgent_projects,
+                "opens_same_day": opens_same_day,
                 "no_due_date": no_due_date,
-                "not_enabled_yet": opens_later,
-                "new_assignments": new_assignments,
                 "changed_assignments": changed_assignments,
                 "new_grades": new_grades,
             },
@@ -65,7 +71,7 @@ class SummaryService:
         sections = payload["sections"]
         lines: list[str] = []
 
-        lines.append("University Summary")
+        lines.append("College Control")
         lines.append(f"Generated at: {payload['generated_at']}")
         lines.append("")
 
@@ -73,30 +79,46 @@ class SummaryService:
         lines.extend(self._section_lines(sections["act_now"]))
 
         lines.append("")
-        lines.append("Less than 24h:")
-        lines.extend(self._section_lines(sections["less_than_24h"]))
-
-        lines.append("")
-        lines.append("2–3 days:")
-        lines.extend(self._section_lines(sections["two_to_three_days"]))
-
-        lines.append("")
         lines.append("This week:")
         lines.extend(self._section_lines(sections["this_week"]))
 
         lines.append("")
-        lines.append("Not enabled yet:")
-        lines.extend(self._section_lines(sections["not_enabled_yet"], use_unlock=True))
+        lines.append("Next week:")
+        lines.extend(self._section_lines(sections["next_week"]))
+
+        lines.append("")
+        lines.append("Third week:")
+        lines.extend(self._section_lines(sections["third_week"]))
+
+        lines.append("")
+        lines.append("Urgent projects:")
+        lines.extend(self._section_lines(sections["urgent_projects"]))
+
+        lines.append("")
+        lines.append("Opens soon:")
+        lines.extend(self._section_lines(sections["opens_same_day"], use_unlock=True))
 
         lines.append("")
         lines.append("No due date:")
         lines.extend(self._section_lines(sections["no_due_date"]))
 
         lines.append("")
+        lines.append("Changed deadlines:")
+        if sections["changed_assignments"]:
+            for item in sections["changed_assignments"]:
+                lines.append(
+                    f"- {item['course_name']} | {item['assignment_name']} | Before: {item['before_due_display']} | Now: {item['after_due_display']}"
+                )
+        else:
+            lines.append("- None")
+
+        lines.append("")
         lines.append("New grades:")
         if sections["new_grades"]:
             for item in sections["new_grades"]:
-                lines.append(f"- {item['course_name']} | {item['assignment_name']} | Score: {item['score_display']}")
+                lines.append(
+                    f"- {item['course_name']} | {item['assignment_name']} | Score: {item['score_display']}"
+                )
         else:
             lines.append("- None")
 
@@ -115,7 +137,7 @@ class SummaryService:
         for item in items:
             if use_unlock:
                 lines.append(
-                    f"- {item['course_name']} | {item['assignment_name']} | Opens: {item.get('unlock_display', 'N/A')}"
+                    f"- {item['course_name']} | {item['assignment_name']} | Opens: {item.get('unlock_display', 'N/A')} | {item.get('relative_time', '')}"
                 )
             else:
                 lines.append(
@@ -223,11 +245,10 @@ class SummaryService:
     def _badge_bg(self, urgency_key: str | None) -> str:
         mapping = {
             "act_now": "#FEE2E2",
-            "less_than_24h": "#FFEDD5",
-            "two_to_three_days": "#FEF3C7",
-            "this_week": "#DBEAFE",
-            "not_enabled_yet": "#E0E7FF",
-            "opens_soon": "#E0E7FF",
+            "this_week": "#FEF3C7",
+            "next_week": "#DBEAFE",
+            "third_week": "#E0E7FF",
+            "opens_same_day": "#EDE9FE",
             "no_due_date": "#E5E7EB",
         }
         return mapping.get(urgency_key, "#E5E7EB")
@@ -235,11 +256,10 @@ class SummaryService:
     def _badge_color(self, urgency_key: str | None) -> str:
         mapping = {
             "act_now": "#B91C1C",
-            "less_than_24h": "#C2410C",
-            "two_to_three_days": "#A16207",
-            "this_week": "#1D4ED8",
-            "not_enabled_yet": "#4338CA",
-            "opens_soon": "#4338CA",
+            "this_week": "#A16207",
+            "next_week": "#1D4ED8",
+            "third_week": "#4338CA",
+            "opens_same_day": "#6D28D9",
             "no_due_date": "#374151",
         }
         return mapping.get(urgency_key, "#374151")
@@ -247,11 +267,10 @@ class SummaryService:
     def _border_color(self, urgency_key: str | None) -> str:
         mapping = {
             "act_now": "#EF4444",
-            "less_than_24h": "#F97316",
-            "two_to_three_days": "#F59E0B",
-            "this_week": "#3B82F6",
-            "not_enabled_yet": "#6366F1",
-            "opens_soon": "#6366F1",
+            "this_week": "#F59E0B",
+            "next_week": "#3B82F6",
+            "third_week": "#6366F1",
+            "opens_same_day": "#8B5CF6",
             "no_due_date": "#9CA3AF",
         }
         return mapping.get(urgency_key, "#D1D5DB")

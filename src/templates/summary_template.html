@@ -2,100 +2,71 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>University Summary</title>
-    <meta name="color-scheme" content="light" />
-    <meta name="supported-color-schemes" content="light" />
+    <title>College Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
   </head>
-  <body style="margin:0; padding:0; background:#f4f7fb; font-family:Arial, Helvetica, sans-serif; color:#111827;">
-    <div style="max-width:920px; margin:0 auto; padding:24px 16px;">
+  <body style="margin:0; padding:0; background:#eef3f9; font-family:Arial, Helvetica, sans-serif; color:#111827;">
+    <div style="max-width:760px; margin:0 auto; padding:20px 12px;">
       <div
         style="
           background:#ffffff;
-          border:1px solid #e5e7eb;
+          border:1px solid #dbe3ee;
           border-radius:20px;
           overflow:hidden;
-          box-shadow:0 10px 30px rgba(15,23,42,0.08);
+          box-shadow:0 8px 30px rgba(15,23,42,0.08);
         "
       >
-        <div
-          style="
-            background:#1d4ed8;
-            padding:28px 24px;
-            color:#ffffff;
-          "
-        >
-          <div style="font-size:30px; font-weight:700; line-height:1.2; color:#ffffff;">
+        <div style="background:#2563eb; padding:24px 20px; color:#ffffff;">
+          <div style="font-size:28px; font-weight:700; line-height:1.2; color:#ffffff;">
             College Control
           </div>
-          <div style="font-size:15px; margin-top:8px; color:#dbeafe;">
-            Your academic action summary
+          <div style="font-size:15px; margin-top:6px; color:#dbeafe;">
+            Weekly academic action summary
           </div>
-          <div style="font-size:13px; margin-top:18px; color:#dbeafe;">
+          <div style="font-size:13px; margin-top:14px; color:#dbeafe;">
             Generated at: {{ payload.generated_at }}
           </div>
 
-          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:22px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-top:18px;">
             <tr>
-              <td style="padding:6px;">
-                <div
-                  style="
-                    background:#eff6ff;
-                    border:1px solid #bfdbfe;
-                    border-radius:14px;
-                    padding:14px 10px;
-                    text-align:center;
-                  "
-                >
-                  <div style="font-size:12px; color:#1e3a8a;">Actionable</div>
-                  <div style="font-size:26px; font-weight:700; color:#1e3a8a; margin-top:4px;">
+              <td style="padding:6px; width:20%;">
+                <div style="background:#eff6ff; border-radius:14px; padding:12px 8px; text-align:center;">
+                  <div style="font-size:11px; color:#1e3a8a;">Actionable</div>
+                  <div style="font-size:24px; font-weight:700; color:#1e3a8a; margin-top:4px;">
                     {{ payload.summary_stats.total_actionable }}
                   </div>
                 </div>
               </td>
-              <td style="padding:6px;">
-                <div
-                  style="
-                    background:#fef2f2;
-                    border:1px solid #fecaca;
-                    border-radius:14px;
-                    padding:14px 10px;
-                    text-align:center;
-                  "
-                >
-                  <div style="font-size:12px; color:#991b1b;">Urgent</div>
-                  <div style="font-size:26px; font-weight:700; color:#991b1b; margin-top:4px;">
+              <td style="padding:6px; width:20%;">
+                <div style="background:#fef2f2; border-radius:14px; padding:12px 8px; text-align:center;">
+                  <div style="font-size:11px; color:#991b1b;">Urgent</div>
+                  <div style="font-size:24px; font-weight:700; color:#991b1b; margin-top:4px;">
                     {{ payload.summary_stats.total_urgent }}
                   </div>
                 </div>
               </td>
-              <td style="padding:6px;">
-                <div
-                  style="
-                    background:#eef2ff;
-                    border:1px solid #c7d2fe;
-                    border-radius:14px;
-                    padding:14px 10px;
-                    text-align:center;
-                  "
-                >
-                  <div style="font-size:12px; color:#3730a3;">Not enabled yet</div>
-                  <div style="font-size:26px; font-weight:700; color:#3730a3; margin-top:4px;">
-                    {{ payload.summary_stats.not_enabled_yet }}
+              <td style="padding:6px; width:20%;">
+                <div style="background:#eef2ff; border-radius:14px; padding:12px 8px; text-align:center;">
+                  <div style="font-size:11px; color:#3730a3;">Opens soon</div>
+                  <div style="font-size:24px; font-weight:700; color:#3730a3; margin-top:4px;">
+                    {{ payload.summary_stats.opens_soon }}
                   </div>
                 </div>
               </td>
-              <td style="padding:6px;">
-                <div
-                  style="
-                    background:#ecfdf5;
-                    border:1px solid #a7f3d0;
-                    border-radius:14px;
-                    padding:14px 10px;
-                    text-align:center;
-                  "
-                >
-                  <div style="font-size:12px; color:#065f46;">New grades</div>
-                  <div style="font-size:26px; font-weight:700; color:#065f46; margin-top:4px;">
+              <td style="padding:6px; width:20%;">
+                <div style="background:#fff7ed; border-radius:14px; padding:12px 8px; text-align:center;">
+                  <div style="font-size:11px; color:#c2410c;">Projects</div>
+                  <div style="font-size:24px; font-weight:700; color:#c2410c; margin-top:4px;">
+                    {{ payload.summary_stats.urgent_projects }}
+                  </div>
+                </div>
+              </td>
+              <td style="padding:6px; width:20%;">
+                <div style="background:#ecfdf5; border-radius:14px; padding:12px 8px; text-align:center;">
+                  <div style="font-size:11px; color:#065f46;">Grades</div>
+                  <div style="font-size:24px; font-weight:700; color:#065f46; margin-top:4px;">
                     {{ payload.summary_stats.new_grades }}
                   </div>
                 </div>
@@ -104,7 +75,7 @@
           </table>
         </div>
 
-        <div style="padding:24px; background:#ffffff;">
+        <div style="padding:20px; background:#ffffff;">
           {% macro task_card(item) -%}
           <div
             style="
@@ -112,12 +83,11 @@
               border:1px solid #e5e7eb;
               border-left:6px solid {{ item.border_color }};
               border-radius:16px;
-              padding:18px;
+              padding:16px;
               margin-bottom:14px;
-              box-shadow:0 4px 12px rgba(15,23,42,0.04);
             "
           >
-            <div style="margin-bottom:10px;">
+            <div style="margin-bottom:8px;">
               <span
                 style="
                   display:inline-block;
@@ -127,18 +97,17 @@
                   font-weight:700;
                   background:{{ item.badge_bg }};
                   color:{{ item.badge_color }};
-                  border:1px solid rgba(0,0,0,0.05);
                 "
               >
                 {{ item.urgency_label }}
               </span>
             </div>
 
-            <div style="font-size:13px; color:#6b7280; margin-bottom:8px;">
+            <div style="font-size:12px; color:#6b7280; margin-bottom:8px;">
               {{ item.course_name }}
             </div>
 
-            <div style="font-size:20px; line-height:1.35; font-weight:700; color:#111827; margin-bottom:10px;">
+            <div style="font-size:19px; line-height:1.35; font-weight:700; color:#111827; margin-bottom:10px;">
               {{ item.assignment_name }}
             </div>
 
@@ -146,11 +115,11 @@
               <strong>{{ item.meta_line }}</strong>
             </div>
 
-            <div style="font-size:14px; color:#374151; margin-bottom:14px;">
+            <div style="font-size:14px; color:#374151; margin-bottom:10px;">
               {{ item.relative_time }}
             </div>
 
-            <div style="font-size:14px; color:#111827; margin-bottom:16px;">
+            <div style="font-size:14px; color:#111827; margin-bottom:14px;">
               Recommended action: <strong>{{ item.action_required }}</strong>
             </div>
 
@@ -162,7 +131,7 @@
                 background:#111827;
                 color:#ffffff;
                 text-decoration:none;
-                padding:10px 16px;
+                padding:10px 14px;
                 border-radius:10px;
                 font-size:13px;
                 font-weight:700;
@@ -181,12 +150,11 @@
               border:1px solid #e5e7eb;
               border-left:6px solid #10b981;
               border-radius:16px;
-              padding:18px;
+              padding:16px;
               margin-bottom:14px;
-              box-shadow:0 4px 12px rgba(15,23,42,0.04);
             "
           >
-            <div style="margin-bottom:10px;">
+            <div style="margin-bottom:8px;">
               <span
                 style="
                   display:inline-block;
@@ -202,15 +170,15 @@
               </span>
             </div>
 
-            <div style="font-size:13px; color:#6b7280; margin-bottom:8px;">
+            <div style="font-size:12px; color:#6b7280; margin-bottom:8px;">
               {{ item.course_name }}
             </div>
 
-            <div style="font-size:19px; font-weight:700; color:#111827; margin-bottom:10px;">
+            <div style="font-size:18px; font-weight:700; color:#111827; margin-bottom:10px;">
               {{ item.assignment_name }}
             </div>
 
-            <div style="font-size:15px; color:#111827; margin-bottom:14px;">
+            <div style="font-size:14px; color:#111827; margin-bottom:14px;">
               Score: <strong>{{ item.score_display }}</strong>
             </div>
 
@@ -222,7 +190,7 @@
                 background:#065f46;
                 color:#ffffff;
                 text-decoration:none;
-                padding:10px 16px;
+                padding:10px 14px;
                 border-radius:10px;
                 font-size:13px;
                 font-weight:700;
@@ -241,12 +209,11 @@
               border:1px solid #e5e7eb;
               border-left:6px solid #8b5cf6;
               border-radius:16px;
-              padding:18px;
+              padding:16px;
               margin-bottom:14px;
-              box-shadow:0 4px 12px rgba(15,23,42,0.04);
             "
           >
-            <div style="margin-bottom:10px;">
+            <div style="margin-bottom:8px;">
               <span
                 style="
                   display:inline-block;
@@ -262,17 +229,18 @@
               </span>
             </div>
 
-            <div style="font-size:13px; color:#6b7280; margin-bottom:8px;">
+            <div style="font-size:12px; color:#6b7280; margin-bottom:8px;">
               {{ item.course_name }}
             </div>
 
-            <div style="font-size:19px; font-weight:700; color:#111827; margin-bottom:10px;">
+            <div style="font-size:18px; font-weight:700; color:#111827; margin-bottom:10px;">
               {{ item.assignment_name }}
             </div>
 
             <div style="font-size:14px; color:#374151; margin-bottom:6px;">
               Before: <strong>{{ item.before_due_display }}</strong>
             </div>
+
             <div style="font-size:14px; color:#374151; margin-bottom:14px;">
               Now: <strong>{{ item.after_due_display }}</strong>
             </div>
@@ -285,7 +253,7 @@
                 background:#6d28d9;
                 color:#ffffff;
                 text-decoration:none;
-                padding:10px 16px;
+                padding:10px 14px;
                 border-radius:10px;
                 font-size:13px;
                 font-weight:700;
@@ -298,49 +266,37 @@
           {%- endmacro %}
 
           {% macro section(title, subtitle, items, mode="task") -%}
-          <div style="margin-top:28px;">
+          {% if items %}
+          <div style="margin-top:26px;">
             <div style="margin-bottom:14px;">
-              <div style="font-size:24px; font-weight:700; color:#111827;">{{ title }}</div>
+              <div style="font-size:23px; font-weight:700; color:#111827;">{{ title }}</div>
               <div style="font-size:14px; color:#6b7280; margin-top:4px;">{{ subtitle }}</div>
             </div>
 
-            {% if items %}
-              {% for item in items %}
-                {% if mode == "task" %}
-                  {{ task_card(item) }}
-                {% elif mode == "grade" %}
-                  {{ grade_card(item) }}
-                {% elif mode == "changed" %}
-                  {{ changed_card(item) }}
-                {% endif %}
-              {% endfor %}
-            {% else %}
-              <div
-                style="
-                  background:#f9fafb;
-                  border:1px solid #e5e7eb;
-                  border-radius:16px;
-                  padding:18px;
-                  color:#6b7280;
-                "
-              >
-                Nothing here right now.
-              </div>
-            {% endif %}
+            {% for item in items %}
+              {% if mode == "task" %}
+                {{ task_card(item) }}
+              {% elif mode == "grade" %}
+                {{ grade_card(item) }}
+              {% elif mode == "changed" %}
+                {{ changed_card(item) }}
+              {% endif %}
+            {% endfor %}
           </div>
+          {% endif %}
           {%- endmacro %}
 
-          {{ section("Act now", "Tasks that need immediate attention.", payload.sections.act_now, "task") }}
-          {{ section("Less than 24 hours", "These should be finished today.", payload.sections.less_than_24h, "task") }}
-          {{ section("2 to 3 days", "Important tasks that are approaching soon.", payload.sections.two_to_three_days, "task") }}
-          {{ section("This week", "Still safe, but already within your short planning window.", payload.sections.this_week, "task") }}
-          {{ section("Not enabled yet", "Published tasks that will open later.", payload.sections.not_enabled_yet, "task") }}
-          {{ section("No due date", "Published tasks with no due date visible.", payload.sections.no_due_date, "task") }}
-          {{ section("New assignments", "Detected since the previous snapshot.", payload.sections.new_assignments, "task") }}
-          {{ section("Changed deadlines", "Assignments whose due date changed.", payload.sections.changed_assignments, "changed") }}
-          {{ section("New grades", "Recently detected grades.", payload.sections.new_grades, "grade") }}
+          {{ section("Accionar ahora", "Tareas con ventana corta o entrega muy próxima.", payload.sections.act_now, "task") }}
+          {{ section("Esta semana", "Tareas que se entregan dentro de la semana actual.", payload.sections.this_week, "task") }}
+          {{ section("Siguiente semana", "Lo que ya deberías ir planeando.", payload.sections.next_week, "task") }}
+          {{ section("Tercera semana", "Pendientes futuros que vale la pena tener en radar.", payload.sections.third_week, "task") }}
+          {{ section("Proyectos urgentes", "Proyectos y entregables grandes que requieren atención.", payload.sections.urgent_projects, "task") }}
+          {{ section("Se habilitan pronto", "Tareas que todavía no abren pero aparecerán pronto, por ejemplo el día de clase.", payload.sections.opens_same_day, "task") }}
+          {{ section("Sin fecha visible", "Tareas publicadas sin fecha clara.", payload.sections.no_due_date, "task") }}
+          {{ section("Cambios de deadline", "Fechas modificadas desde la última corrida.", payload.sections.changed_assignments, "changed") }}
+          {{ section("Nuevas notas", "Resultados detectados recientemente.", payload.sections.new_grades, "grade") }}
 
-          <div style="margin-top:32px; font-size:12px; color:#6b7280; text-align:center;">
+          <div style="margin-top:28px; font-size:12px; color:#6b7280; text-align:center;">
             Generated automatically by College Control
           </div>
         </div>

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from dateutil import parser as date_parser
-from config.settings import DAYS_AHEAD_WARNING
 
 
 class ComparisonService:
@@ -46,43 +45,59 @@ class ComparisonService:
                     }
                 )
 
-        upcoming = self._get_upcoming(current_snapshot.get("assignments", []))
+        actionable = self._build_actionable_groups(current_snapshot.get("assignments", []))
 
         return {
             "new_assignments": new_assignments,
             "changed_assignments": changed_assignments,
             "new_grades": new_grades,
-            "upcoming_assignments": upcoming,
+            "actionable_groups": actionable,
         }
 
-    def _get_upcoming(self, assignments: list[dict]) -> list[dict]:
+    def _build_actionable_groups(self, assignments: list[dict]) -> dict:
         now = datetime.now(timezone.utc)
-        results = []
+
+        groups = {
+            "act_now": [],
+            "this_week": [],
+            "next_week": [],
+            "third_week": [],
+            "urgent_projects": [],
+            "opens_same_day": [],
+            "no_due_date": [],
+        }
 
         for assignment in assignments:
             enriched = self._enrich_assignment(assignment, now)
             if enriched is None:
                 continue
 
-            candidate_hours = enriched.get("hours_until_due")
-            candidate_unlock_hours = enriched.get("hours_until_unlock")
+            status = enriched.get("status")
+            urgency = enriched.get("urgency_key")
+            is_project = enriched.get("is_project", False)
 
-            include = False
+            if status == "not_enabled_yet":
+                groups["opens_same_day"].append(enriched)
+                continue
 
-            if enriched.get("status") == "not_enabled_yet":
-                if candidate_unlock_hours is not None and 0 <= candidate_unlock_hours <= (DAYS_AHEAD_WARNING * 24):
-                    include = True
-            elif enriched.get("status") in {"open", "open_no_due_date"}:
-                if candidate_hours is None:
-                    include = True
-                elif 0 <= candidate_hours <= (DAYS_AHEAD_WARNING * 24):
-                    include = True
+            if urgency == "act_now":
+                groups["act_now"].append(enriched)
+            elif urgency == "this_week":
+                groups["this_week"].append(enriched)
+            elif urgency == "next_week":
+                groups["next_week"].append(enriched)
+            elif urgency == "third_week":
+                groups["third_week"].append(enriched)
+            elif urgency == "no_due_date":
+                groups["no_due_date"].append(enriched)
 
-            if include:
-                results.append(enriched)
+            if is_project and urgency in {"act_now", "this_week", "next_week"}:
+                groups["urgent_projects"].append(enriched)
 
-        results.sort(key=self._sort_key)
-        return results
+        for key in groups:
+            groups[key].sort(key=self._sort_key)
+
+        return groups
 
     def _enrich_assignment(self, assignment: dict, now: datetime) -> dict | None:
         enriched = dict(assignment)
@@ -100,12 +115,18 @@ class ComparisonService:
 
         enriched["hours_until_due"] = hours_until_due
         enriched["hours_until_unlock"] = hours_until_unlock
+        enriched["is_project"] = self._is_project(assignment.get("assignment_name"))
 
         if assignment.get("status") == "not_enabled_yet":
-            urgency_key, urgency_label = self._classify_unlock_urgency(hours_until_unlock)
-            enriched["urgency_key"] = urgency_key
-            enriched["urgency_label"] = urgency_label
-            enriched["action_required"] = "Wait until it opens"
+            if hours_until_unlock is None:
+                return None
+
+            if hours_until_unlock < 0 or hours_until_unlock > (24 * 7):
+                return None
+
+            enriched["urgency_key"] = "opens_same_day"
+            enriched["urgency_label"] = "Opens soon"
+            enriched["action_required"] = "Be ready when it opens"
             return enriched
 
         if assignment.get("status") == "open_no_due_date":
@@ -121,6 +142,9 @@ class ComparisonService:
             return None
 
         urgency_key, urgency_label = self._classify_due_urgency(hours_until_due)
+        if urgency_key == "later":
+            return None
+
         enriched["urgency_key"] = urgency_key
         enriched["urgency_label"] = urgency_label
         enriched["action_required"] = self._action_required_label(urgency_key)
@@ -130,30 +154,41 @@ class ComparisonService:
     def _classify_due_urgency(self, hours_until_due: float) -> tuple[str, str]:
         if hours_until_due <= 6:
             return "act_now", "Act now"
-        if hours_until_due <= 24:
-            return "less_than_24h", "Less than 24h"
-        if hours_until_due <= 72:
-            return "two_to_three_days", "2–3 days"
+        if hours_until_due <= 48:
+            return "act_now", "1–2 days"
         if hours_until_due <= 168:
             return "this_week", "This week"
+        if hours_until_due <= 336:
+            return "next_week", "Next week"
+        if hours_until_due <= 504:
+            return "third_week", "Third week"
         return "later", "Later"
-
-    def _classify_unlock_urgency(self, hours_until_unlock: float | None) -> tuple[str, str]:
-        if hours_until_unlock is None:
-            return "not_enabled_yet", "Not enabled yet"
-        if hours_until_unlock <= 24:
-            return "opens_soon", "Opens soon"
-        return "not_enabled_yet", "Not enabled yet"
 
     def _action_required_label(self, urgency_key: str) -> str:
         mapping = {
-            "act_now": "Take action immediately",
-            "less_than_24h": "Finish today",
-            "two_to_three_days": "Plan it soon",
-            "this_week": "Organize this week",
-            "later": "Keep it in view",
+            "act_now": "Take action as soon as possible",
+            "this_week": "Plan and start this week",
+            "next_week": "Prepare next week",
+            "third_week": "Keep it on your radar",
+            "no_due_date": "Review manually",
         }
         return mapping.get(urgency_key, "Review soon")
+
+    def _is_project(self, assignment_name: str | None) -> bool:
+        if not assignment_name:
+            return False
+
+        normalized = assignment_name.lower()
+        keywords = [
+            "proyecto",
+            "project",
+            "entrega final",
+            "final delivery",
+            "plan de trabajo",
+            "proposal",
+            "propuesta",
+        ]
+        return any(keyword in normalized for keyword in keywords)
 
     def _parse_dt(self, value: str | None) -> datetime | None:
         if not value:
@@ -166,13 +201,11 @@ class ComparisonService:
     def _sort_key(self, item: dict) -> tuple[int, float]:
         urgency_order = {
             "act_now": 0,
-            "less_than_24h": 1,
-            "two_to_three_days": 2,
-            "this_week": 3,
-            "opens_soon": 4,
-            "not_enabled_yet": 5,
-            "no_due_date": 6,
-            "later": 7,
+            "this_week": 1,
+            "next_week": 2,
+            "third_week": 3,
+            "opens_same_day": 4,
+            "no_due_date": 5,
         }
 
         if item.get("status") == "not_enabled_yet":
