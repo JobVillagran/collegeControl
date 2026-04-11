@@ -18,15 +18,17 @@ on:
         type: string
 
   schedule:
-    # Wednesday, Thursday, Friday, Saturday, Sunday
-    # 7:00 AM Guatemala = 13:00 UTC
+    # Wed, Thu, Fri, Sat, Sun
+    # GT: 7:00 AM | UAE: 5:00 PM
     - cron: "0 13 * * 3,4,5,6,0"
 
-    # 1:00 PM Guatemala = 19:00 UTC
+    # Wed, Thu, Fri, Sat, Sun
+    # GT: 1:00 PM | UAE: 11:00 PM
     - cron: "0 19 * * 3,4,5,6,0"
 
-    # 7:00 PM Guatemala = 01:00 UTC next day
-    # For local GT days Wed, Thu, Fri, Sat, Sun -> UTC days Thu, Fri, Sat, Sun, Mon
+    # GT local days: Wed, Thu, Fri, Sat, Sun
+    # UAE local days: Thu, Fri, Sat, Sun, Mon
+    # GT: 7:00 PM | UAE: 5:00 AM
     - cron: "0 1 * * 1,4,5,6,0"
 
 jobs:
