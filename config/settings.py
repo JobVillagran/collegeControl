@@ -48,12 +48,9 @@ def get_env_bool(name: str, default: bool) -> bool:
 
 
 CANVAS_BASE_URL = get_env_str("CANVAS_BASE_URL")
-CANVAS_LOGIN_URL = get_env_str("CANVAS_LOGIN_URL")
-CANVAS_EMAIL = get_env_str("CANVAS_EMAIL")
-CANVAS_PASSWORD = get_env_str("CANVAS_PASSWORD")
+CANVAS_API_TOKEN = get_env_str("CANVAS_API_TOKEN")
 
 APP_TIMEZONE = get_env_str("APP_TIMEZONE", "America/Guatemala")
-HEADLESS = get_env_bool("HEADLESS", True)
 DAYS_AHEAD_WARNING = get_env_int("DAYS_AHEAD_WARNING", 3)
 SEND_EMAIL = get_env_bool("SEND_EMAIL", True)
 

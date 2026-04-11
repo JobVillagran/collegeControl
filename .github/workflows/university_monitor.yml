@@ -11,14 +11,6 @@ on:
         options:
           - "true"
           - "false"
-      headless:
-        description: "Run browser in headless mode"
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
       days_ahead_warning:
         description: "Upcoming deadline window in days"
         required: true
@@ -45,16 +37,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          playwright install --with-deps chromium
 
       - name: Run monitor
         env:
           CANVAS_BASE_URL: ${{ secrets.CANVAS_BASE_URL }}
-          CANVAS_LOGIN_URL: ${{ secrets.CANVAS_LOGIN_URL }}
-          CANVAS_EMAIL: ${{ secrets.CANVAS_EMAIL }}
-          CANVAS_PASSWORD: ${{ secrets.CANVAS_PASSWORD }}
+          CANVAS_API_TOKEN: ${{ secrets.CANVAS_API_TOKEN }}
           APP_TIMEZONE: ${{ secrets.APP_TIMEZONE }}
-          HEADLESS: ${{ github.event.inputs.headless || 'true' }}
           DAYS_AHEAD_WARNING: ${{ github.event.inputs.days_ahead_warning || '3' }}
           SEND_EMAIL: ${{ github.event.inputs.send_email || 'true' }}
           EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}

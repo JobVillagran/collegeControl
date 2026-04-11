@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from config.settings import (
-    CANVAS_LOGIN_URL,
-    CANVAS_EMAIL,
-    CANVAS_PASSWORD,
+    CANVAS_BASE_URL,
+    CANVAS_API_TOKEN,
     SEND_EMAIL,
     EMAIL_SMTP_HOST,
     EMAIL_SMTP_PORT,
@@ -16,12 +15,10 @@ from config.settings import (
 def validate_required_config() -> None:
     missing: list[str] = []
 
-    if not CANVAS_LOGIN_URL:
-        missing.append("CANVAS_LOGIN_URL")
-    if not CANVAS_EMAIL:
-        missing.append("CANVAS_EMAIL")
-    if not CANVAS_PASSWORD:
-        missing.append("CANVAS_PASSWORD")
+    if not CANVAS_BASE_URL:
+        missing.append("CANVAS_BASE_URL")
+    if not CANVAS_API_TOKEN:
+        missing.append("CANVAS_API_TOKEN")
 
     if SEND_EMAIL:
         if not EMAIL_SMTP_HOST:
