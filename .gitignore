@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+playwright/.auth/
+data/logs/app.log
+reports/latest_summary.html
+reports/latest_summary.txt
+data/snapshots/current_snapshot.json
+data/snapshots/previous_snapshot.json
+data/processed/changes.json
+data/processed/upcoming.json
+data/processed/summary_payload.json
+.pytest_cache/
+.DS_Store
