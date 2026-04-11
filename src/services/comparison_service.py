@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil import parser as date_parser
 from config.settings import DAYS_AHEAD_WARNING
+
 
 class ComparisonService:
     def compare(self, previous_snapshot: dict, current_snapshot: dict) -> dict:
@@ -55,22 +56,36 @@ class ComparisonService:
         }
 
     def _get_upcoming(self, assignments: list[dict]) -> list[dict]:
-        now = datetime.now().astimezone()
+        now = datetime.now(timezone.utc)
         results = []
 
         for assignment in assignments:
-            due_date_iso = assignment.get("due_date_iso")
-            if not due_date_iso:
-                continue
+            candidate_dates = [
+                assignment.get("due_date_iso"),
+                assignment.get("unlock_at"),
+            ]
 
-            try:
-                due_dt = date_parser.parse(due_date_iso)
-            except Exception:
-                continue
+            closest_future = None
 
-            delta_days = (due_dt - now).total_seconds() / 86400
-            if 0 <= delta_days <= DAYS_AHEAD_WARNING:
+            for raw in candidate_dates:
+                if not raw:
+                    continue
+                try:
+                    dt = date_parser.parse(raw).astimezone(timezone.utc)
+                except Exception:
+                    continue
+
+                delta_days = (dt - now).total_seconds() / 86400
+                if 0 <= delta_days <= DAYS_AHEAD_WARNING:
+                    if closest_future is None or dt < closest_future:
+                        closest_future = dt
+
+            if closest_future is not None:
                 results.append(assignment)
 
-        results.sort(key=lambda item: item.get("due_date_iso") or "")
+        results.sort(
+            key=lambda item: (
+                item.get("unlock_at") or item.get("due_date_iso") or ""
+            )
+        )
         return results

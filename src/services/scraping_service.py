@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from typing import Optional
+
+from dateutil import parser as date_parser
 
 from src.services.canvas_api_service import CanvasAPIService
 
@@ -41,10 +44,14 @@ class ScrapingService:
                 course_name=course_name,
                 course_url=course_url,
             )
-            all_assignments.extend(assignments)
+
+            filtered_assignments = self._filter_actionable_assignments(assignments)
+            all_assignments.extend(filtered_assignments)
 
         if not all_assignments:
-            raise RuntimeError("No assignments were returned by Canvas API for the current term courses.")
+            raise RuntimeError(
+                "No actionable assignments were returned by Canvas API for the current term courses."
+            )
 
         return all_assignments
 
@@ -64,13 +71,11 @@ class ScrapingService:
 
         latest_term = max(term_key for term_key, _ in tagged_courses)
 
-        filtered = [
+        return [
             course
             for term_key, course in tagged_courses
             if term_key == latest_term
         ]
-
-        return filtered
 
     def _extract_term_key(self, course: dict) -> Optional[tuple[int, int]]:
         candidates = [
@@ -94,3 +99,52 @@ class ScrapingService:
                 continue
 
         return None
+
+    def _filter_actionable_assignments(self, assignments: list[dict]) -> list[dict]:
+        now = datetime.now(timezone.utc)
+        results: list[dict] = []
+
+        for assignment in assignments:
+            published = bool(assignment.get("published"))
+            due_at = self._parse_dt(assignment.get("due_date_iso"))
+            unlock_at = self._parse_dt(assignment.get("unlock_at"))
+            lock_at = self._parse_dt(assignment.get("lock_at"))
+            score = assignment.get("score")
+            submitted_at = assignment.get("submitted_at")
+
+            if not published:
+                continue
+
+            # Cerrada de verdad
+            if lock_at and lock_at <= now:
+                continue
+
+            # Si no tiene lock_at pero ya venció, la tratamos como cerrada
+            if due_at and due_at <= now and not unlock_at:
+                continue
+
+            # Clasificación útil para el summary
+            if unlock_at and unlock_at > now:
+                assignment["status"] = "not_enabled_yet"
+            elif due_at and due_at > now:
+                assignment["status"] = "open"
+            elif not due_at and not lock_at:
+                assignment["status"] = "open_no_due_date"
+            else:
+                assignment["status"] = "open"
+
+            # Metadata útil
+            assignment["is_submitted"] = bool(submitted_at)
+            assignment["is_graded"] = score is not None
+
+            results.append(assignment)
+
+        return results
+
+    def _parse_dt(self, value: str | None) -> Optional[datetime]:
+        if not value:
+            return None
+        try:
+            return date_parser.parse(value).astimezone(timezone.utc)
+        except Exception:
+            return None

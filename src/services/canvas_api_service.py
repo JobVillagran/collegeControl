@@ -99,32 +99,42 @@ class CanvasAPIService:
             assignment_id = item.get("id")
             assignment_name = item.get("name")
             due_at = item.get("due_at")
-            points_possible = item.get("points_possible")
+            unlock_at = item.get("unlock_at")
+            lock_at = item.get("lock_at")
             html_url = item.get("html_url")
+            points_possible = item.get("points_possible")
+            published = bool(item.get("published", False))
+            locked_for_user = bool(item.get("locked_for_user", False))
+            lock_info = item.get("lock_info") or {}
+            lock_explanation = item.get("lock_explanation")
+            workflow_state = item.get("workflow_state")
 
             submission = item.get("submission") or {}
             score = submission.get("score")
-            workflow_state = item.get("workflow_state")
-
-            status = "unknown"
-            if score is not None:
-                status = "graded"
-            elif due_at:
-                status = "upcoming"
-            elif workflow_state == "published":
-                status = "published"
+            submitted_at = submission.get("submitted_at")
+            missing = submission.get("missing")
 
             assignments.append(
                 {
                     "course_name": course_name,
                     "course_url": course_url,
                     "assignment_name": assignment_name or f"Assignment {assignment_id}",
+                    "assignment_id": str(assignment_id) if assignment_id else None,
+                    "assignment_url": html_url,
                     "due_date_raw": due_at,
                     "due_date_iso": due_at,
-                    "status": status,
+                    "unlock_at": unlock_at,
+                    "lock_at": lock_at,
+                    "published": published,
+                    "locked_for_user": locked_for_user,
+                    "lock_info": lock_info,
+                    "lock_explanation": lock_explanation,
+                    "workflow_state": workflow_state,
+                    "submitted_at": submitted_at,
+                    "missing": missing,
                     "score": str(score) if score is not None else None,
                     "max_score": points_possible,
-                    "assignment_url": html_url,
+                    "status": "unknown",
                 }
             )
 
