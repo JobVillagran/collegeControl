@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>University Summary</title>
+  </head>
+  <body style="font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 24px;">
+    <div style="max-width: 760px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px;">
+      <h1 style="margin-top: 0;">University Summary</h1>
+
+      <h2>New Assignments</h2>
+      {% if payload.new_assignments %}
+        <ul>
+          {% for item in payload.new_assignments %}
+            <li>
+              <strong>{{ item.course_name }}</strong><br />
+              {{ item.assignment_name }}<br />
+              {% if item.due_date_iso %}Due: {{ item.due_date_iso }}{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No new assignments.</p>
+      {% endif %}
+
+      <h2>Changed Assignments</h2>
+      {% if payload.changed_assignments %}
+        <ul>
+          {% for item in payload.changed_assignments %}
+            <li>
+              <strong>{{ item.after.course_name }}</strong><br />
+              {{ item.after.assignment_name }}<br />
+              Before: {{ item.before.due_date_iso }}<br />
+              After: {{ item.after.due_date_iso }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No assignment changes.</p>
+      {% endif %}
+
+      <h2>New Grades</h2>
+      {% if payload.new_grades %}
+        <ul>
+          {% for item in payload.new_grades %}
+            <li>
+              <strong>{{ item.after.course_name }}</strong><br />
+              {{ item.after.assignment_name }}<br />
+              Score: {{ item.after.score }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No new grades.</p>
+      {% endif %}
+
+      <h2>Upcoming Deadlines</h2>
+      {% if payload.upcoming_assignments %}
+        <ul>
+          {% for item in payload.upcoming_assignments %}
+            <li>
+              <strong>{{ item.course_name }}</strong><br />
+              {{ item.assignment_name }}<br />
+              Due: {{ item.due_date_iso }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>No upcoming deadlines in the configured window.</p>
+      {% endif %}
+    </div>
+  </body>
+</html>
