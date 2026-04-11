@@ -12,6 +12,13 @@ from src.services.canvas_api_service import CanvasAPIService
 class ScrapingService:
     TERM_PATTERN = re.compile(r"\b([12])(\d{4})-\d{4}-\d{3}-[A-Z]\b")
 
+    EXCLUDED_ASSIGNMENT_PATTERNS = [
+        "roll call attendance",
+        "asistencia",
+        "attendance",
+        "roll call",
+    ]
+
     def __init__(self) -> None:
         self.canvas_api = CanvasAPIService()
 
@@ -105,6 +112,10 @@ class ScrapingService:
         results: list[dict] = []
 
         for assignment in assignments:
+            assignment_name = (assignment.get("assignment_name") or "").strip()
+            if self._should_exclude_assignment(assignment_name):
+                continue
+
             published = bool(assignment.get("published"))
             due_at = self._parse_dt(assignment.get("due_date_iso"))
             unlock_at = self._parse_dt(assignment.get("unlock_at"))
@@ -115,15 +126,12 @@ class ScrapingService:
             if not published:
                 continue
 
-            # Cerrada de verdad
             if lock_at and lock_at <= now:
                 continue
 
-            # Si no tiene lock_at pero ya venció, la tratamos como cerrada
-            if due_at and due_at <= now and not unlock_at:
+            if due_at and due_at <= now and not lock_at and not unlock_at:
                 continue
 
-            # Clasificación útil para el summary
             if unlock_at and unlock_at > now:
                 assignment["status"] = "not_enabled_yet"
             elif due_at and due_at > now:
@@ -133,13 +141,16 @@ class ScrapingService:
             else:
                 assignment["status"] = "open"
 
-            # Metadata útil
             assignment["is_submitted"] = bool(submitted_at)
             assignment["is_graded"] = score is not None
 
             results.append(assignment)
 
         return results
+
+    def _should_exclude_assignment(self, assignment_name: str) -> bool:
+        normalized = assignment_name.lower()
+        return any(pattern in normalized for pattern in self.EXCLUDED_ASSIGNMENT_PATTERNS)
 
     def _parse_dt(self, value: str | None) -> Optional[datetime]:
         if not value:

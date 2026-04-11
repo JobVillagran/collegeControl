@@ -2,72 +2,385 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>University Summary</title>
+    <title>College Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="supported-color-schemes" content="light dark" />
   </head>
-  <body style="font-family: Arial, sans-serif; background: #f7f7f7; margin: 0; padding: 24px;">
-    <div style="max-width: 760px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 24px;">
-      <h1 style="margin-top: 0;">University Summary</h1>
+  <body style="margin:0; padding:0; background:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,Helvetica,sans-serif; color:#111827;">
+    <div style="max-width:760px; margin:0 auto; padding:18px 12px 28px 12px;">
+      <div
+        style="
+          background:#f8fafc;
+          border:1px solid #dbe3ee;
+          border-radius:28px;
+          overflow:hidden;
+          box-shadow:0 10px 30px rgba(15,23,42,0.08);
+        "
+      >
+        <div style="padding:22px 20px 10px 20px;">
+          <div style="font-size:28px; font-weight:800; line-height:1.15; color:#111827;">
+            College Control
+          </div>
 
-      <h2>New Assignments</h2>
-      {% if payload.new_assignments %}
-        <ul>
-          {% for item in payload.new_assignments %}
-            <li>
-              <strong>{{ item.course_name }}</strong><br />
-              {{ item.assignment_name }}<br />
-              {% if item.due_date_iso %}Due: {{ item.due_date_iso }}{% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No new assignments.</p>
-      {% endif %}
+          <div style="font-size:16px; color:#6b7280; margin-top:6px;">
+            Smart academic overview for your current term
+          </div>
 
-      <h2>Changed Assignments</h2>
-      {% if payload.changed_assignments %}
-        <ul>
-          {% for item in payload.changed_assignments %}
-            <li>
-              <strong>{{ item.after.course_name }}</strong><br />
-              {{ item.after.assignment_name }}<br />
-              Before: {{ item.before.due_date_iso }}<br />
-              After: {{ item.after.due_date_iso }}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No assignment changes.</p>
-      {% endif %}
+          <div style="font-size:16px; color:#6b7280; margin-top:10px;">
+            Generated at: {{ payload.generated_at }}
+          </div>
+        </div>
 
-      <h2>New Grades</h2>
-      {% if payload.new_grades %}
-        <ul>
-          {% for item in payload.new_grades %}
-            <li>
-              <strong>{{ item.after.course_name }}</strong><br />
-              {{ item.after.assignment_name }}<br />
-              Score: {{ item.after.score }}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No new grades.</p>
-      {% endif %}
+        <div style="padding:8px 20px 6px 20px;">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td style="padding:6px; width:20%;">
+                <div
+                  style="
+                    background:#ffffff;
+                    border:1px solid #e5e7eb;
+                    border-radius:18px;
+                    padding:14px 10px;
+                    text-align:center;
+                  "
+                >
+                  <div style="font-size:11px; color:#64748b;">Actionable</div>
+                  <div style="font-size:24px; font-weight:800; color:#111827; margin-top:4px;">
+                    {{ payload.summary_stats.total_actionable }}
+                  </div>
+                </div>
+              </td>
+              <td style="padding:6px; width:20%;">
+                <div
+                  style="
+                    background:#fff1f2;
+                    border:1px solid #fecdd3;
+                    border-radius:18px;
+                    padding:14px 10px;
+                    text-align:center;
+                  "
+                >
+                  <div style="font-size:11px; color:#be123c;">Urgent</div>
+                  <div style="font-size:24px; font-weight:800; color:#be123c; margin-top:4px;">
+                    {{ payload.summary_stats.total_urgent }}
+                  </div>
+                </div>
+              </td>
+              <td style="padding:6px; width:20%;">
+                <div
+                  style="
+                    background:#eef2ff;
+                    border:1px solid #c7d2fe;
+                    border-radius:18px;
+                    padding:14px 10px;
+                    text-align:center;
+                  "
+                >
+                  <div style="font-size:11px; color:#4338ca;">Opens soon</div>
+                  <div style="font-size:24px; font-weight:800; color:#4338ca; margin-top:4px;">
+                    {{ payload.summary_stats.opens_soon }}
+                  </div>
+                </div>
+              </td>
+              <td style="padding:6px; width:20%;">
+                <div
+                  style="
+                    background:#fff7ed;
+                    border:1px solid #fdba74;
+                    border-radius:18px;
+                    padding:14px 10px;
+                    text-align:center;
+                  "
+                >
+                  <div style="font-size:11px; color:#c2410c;">Projects</div>
+                  <div style="font-size:24px; font-weight:800; color:#c2410c; margin-top:4px;">
+                    {{ payload.summary_stats.urgent_projects }}
+                  </div>
+                </div>
+              </td>
+              <td style="padding:6px; width:20%;">
+                <div
+                  style="
+                    background:#ecfdf5;
+                    border:1px solid #a7f3d0;
+                    border-radius:18px;
+                    padding:14px 10px;
+                    text-align:center;
+                  "
+                >
+                  <div style="font-size:11px; color:#047857;">Grades</div>
+                  <div style="font-size:24px; font-weight:800; color:#047857; margin-top:4px;">
+                    {{ payload.summary_stats.new_grades }}
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </table>
+        </div>
 
-      <h2>Upcoming Deadlines</h2>
-      {% if payload.upcoming_assignments %}
-        <ul>
-          {% for item in payload.upcoming_assignments %}
-            <li>
-              <strong>{{ item.course_name }}</strong><br />
-              {{ item.assignment_name }}<br />
-              Due: {{ item.due_date_iso }}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No upcoming deadlines in the configured window.</p>
-      {% endif %}
+        <div style="padding:6px 20px 24px 20px;">
+          {% macro task_card(item) -%}
+          <div
+            style="
+              background:#ffffff;
+              border:1px solid #e5e7eb;
+              border-radius:22px;
+              padding:16px;
+              margin-bottom:14px;
+              box-shadow:0 2px 10px rgba(15,23,42,0.04);
+            "
+          >
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td valign="top" style="padding-right:10px;">
+                  <div
+                    style="
+                      width:12px;
+                      height:12px;
+                      border-radius:999px;
+                      margin-top:6px;
+                      background:{{ item.border_color }};
+                    "
+                  ></div>
+                </td>
+                <td valign="top">
+                  <div style="display:block; margin-bottom:8px;">
+                    <span
+                      style="
+                        display:inline-block;
+                        padding:6px 10px;
+                        border-radius:999px;
+                        font-size:11px;
+                        font-weight:800;
+                        background:{{ item.badge_bg }};
+                        color:{{ item.badge_color }};
+                      "
+                    >
+                      {{ item.urgency_label }}
+                    </span>
+                  </div>
+
+                  <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">
+                    {{ item.course_name }}
+                  </div>
+
+                  <div style="font-size:20px; line-height:1.28; font-weight:800; color:#111827; margin-bottom:10px;">
+                    {{ item.assignment_name }}
+                  </div>
+
+                  <div style="font-size:14px; color:#475569; margin-bottom:6px;">
+                    <strong>{{ item.meta_line }}</strong>
+                  </div>
+
+                  <div
+                    style="
+                      font-size:18px;
+                      line-height:1.35;
+                      font-weight:800;
+                      margin-bottom:12px;
+                      color:
+                        {% if item.urgency_key == 'act_now' %}#dc2626
+                        {% elif item.urgency_key == 'this_week' %}#d97706
+                        {% elif item.urgency_key == 'next_week' %}#2563eb
+                        {% elif item.urgency_key == 'third_week' %}#4f46e5
+                        {% elif item.urgency_key == 'opens_same_day' %}#7c3aed
+                        {% else %}#334155
+                        {% endif %};
+                    "
+                  >
+                    {{ item.relative_time }}
+                  </div>
+
+                  <div style="font-size:14px; color:#111827; margin-bottom:14px;">
+                    Recommended action: <strong>{{ item.action_required }}</strong>
+                  </div>
+
+                  {% if item.assignment_url %}
+                  <a
+                    href="{{ item.assignment_url }}"
+                    style="
+                      display:inline-block;
+                      background:#2563eb;
+                      color:#ffffff;
+                      text-decoration:none;
+                      padding:11px 16px;
+                      border-radius:14px;
+                      font-size:13px;
+                      font-weight:800;
+                    "
+                  >
+                    Open assignment
+                  </a>
+                  {% endif %}
+                </td>
+              </tr>
+            </table>
+          </div>
+          {%- endmacro %}
+
+          {% macro grade_card(item) -%}
+          <div
+            style="
+              background:#ffffff;
+              border:1px solid #e5e7eb;
+              border-radius:22px;
+              padding:16px;
+              margin-bottom:14px;
+              box-shadow:0 2px 10px rgba(15,23,42,0.04);
+            "
+          >
+            <div style="margin-bottom:8px;">
+              <span
+                style="
+                  display:inline-block;
+                  padding:6px 10px;
+                  border-radius:999px;
+                  font-size:11px;
+                  font-weight:800;
+                  background:#d1fae5;
+                  color:#047857;
+                "
+              >
+                New grade
+              </span>
+            </div>
+
+            <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">
+              {{ item.course_name }}
+            </div>
+
+            <div style="font-size:19px; line-height:1.3; font-weight:800; color:#111827; margin-bottom:10px;">
+              {{ item.assignment_name }}
+            </div>
+
+            <div style="font-size:15px; color:#111827; margin-bottom:14px;">
+              Score: <strong>{{ item.score_display }}</strong>
+            </div>
+
+            {% if item.assignment_url %}
+            <a
+              href="{{ item.assignment_url }}"
+              style="
+                display:inline-block;
+                background:#059669;
+                color:#ffffff;
+                text-decoration:none;
+                padding:11px 16px;
+                border-radius:14px;
+                font-size:13px;
+                font-weight:800;
+              "
+            >
+              Open item
+            </a>
+            {% endif %}
+          </div>
+          {%- endmacro %}
+
+          {% macro changed_card(item) -%}
+          <div
+            style="
+              background:#ffffff;
+              border:1px solid #e5e7eb;
+              border-radius:22px;
+              padding:16px;
+              margin-bottom:14px;
+              box-shadow:0 2px 10px rgba(15,23,42,0.04);
+            "
+          >
+            <div style="margin-bottom:8px;">
+              <span
+                style="
+                  display:inline-block;
+                  padding:6px 10px;
+                  border-radius:999px;
+                  font-size:11px;
+                  font-weight:800;
+                  background:#ede9fe;
+                  color:#6d28d9;
+                "
+              >
+                Deadline changed
+              </span>
+            </div>
+
+            <div style="font-size:12px; color:#94a3b8; margin-bottom:6px;">
+              {{ item.course_name }}
+            </div>
+
+            <div style="font-size:19px; line-height:1.3; font-weight:800; color:#111827; margin-bottom:10px;">
+              {{ item.assignment_name }}
+            </div>
+
+            <div style="font-size:14px; color:#475569; margin-bottom:6px;">
+              Before: <strong>{{ item.before_due_display }}</strong>
+            </div>
+
+            <div style="font-size:14px; color:#475569; margin-bottom:14px;">
+              Now: <strong>{{ item.after_due_display }}</strong>
+            </div>
+
+            {% if item.assignment_url %}
+            <a
+              href="{{ item.assignment_url }}"
+              style="
+                display:inline-block;
+                background:#7c3aed;
+                color:#ffffff;
+                text-decoration:none;
+                padding:11px 16px;
+                border-radius:14px;
+                font-size:13px;
+                font-weight:800;
+              "
+            >
+              Review change
+            </a>
+            {% endif %}
+          </div>
+          {%- endmacro %}
+
+          {% macro section(title, subtitle, items, mode="task") -%}
+          {% if items %}
+          <div style="margin-top:28px;">
+            <div style="margin-bottom:14px;">
+              <div style="font-size:24px; font-weight:800; color:#111827; line-height:1.2;">
+                {{ title }}
+              </div>
+              <div style="font-size:14px; color:#6b7280; margin-top:4px; line-height:1.45;">
+                {{ subtitle }}
+              </div>
+            </div>
+
+            {% for item in items %}
+              {% if mode == "task" %}
+                {{ task_card(item) }}
+              {% elif mode == "grade" %}
+                {{ grade_card(item) }}
+              {% elif mode == "changed" %}
+                {{ changed_card(item) }}
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+          {%- endmacro %}
+
+          {{ section("Act now", "Tasks with a short action window or very close due date.", payload.sections.act_now, "task") }}
+          {{ section("This week", "Tasks due within the current week.", payload.sections.this_week, "task") }}
+          {{ section("Next week", "Items you should already start planning.", payload.sections.next_week, "task") }}
+          {{ section("Third week", "Future tasks worth keeping on your radar.", payload.sections.third_week, "task") }}
+          {{ section("Urgent projects", "Projects and large deliverables that need attention.", payload.sections.urgent_projects, "task") }}
+          {{ section("Opens soon", "Tasks that are not open yet but will be enabled soon, such as class-day labs.", payload.sections.opens_same_day, "task") }}
+          {{ section("No visible due date", "Published tasks without a clear due date.", payload.sections.no_due_date, "task") }}
+          {{ section("Deadline changes", "Due date changes detected since the last run.", payload.sections.changed_assignments, "changed") }}
+          {{ section("New grades", "Recently detected results.", payload.sections.new_grades, "grade") }}
+
+          <div style="margin-top:30px; font-size:12px; color:#94a3b8; text-align:center;">
+            Generated automatically by College Control
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>
