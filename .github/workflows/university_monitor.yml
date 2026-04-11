@@ -4,9 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       send_email:
-        description: "Send summary email"
+        description: "Enable email sending"
         required: true
         default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      force_send_email:
+        description: "Force email sending for manual dispatch testing"
+        required: true
+        default: "false"
         type: choice
         options:
           - "true"
@@ -16,9 +24,20 @@ on:
         required: true
         default: "3"
         type: string
+
   schedule:
-    - cron: "0 13 * * 1-5"
-    - cron: "0 2 * * 2-6"
+    # Wed, Thu, Fri, Sat, Sun
+    # GT: 7:00 AM | UAE: 5:00 PM
+    - cron: "0 13 * * 3,4,5,6,0"
+
+    # Wed, Thu, Fri, Sat, Sun
+    # GT: 1:00 PM | UAE: 11:00 PM
+    - cron: "0 19 * * 3,4,5,6,0"
+
+    # GT local days: Wed, Thu, Fri, Sat, Sun
+    # UAE local days: Thu, Fri, Sat, Sun, Mon
+    # GT: 7:00 PM | UAE: 5:00 AM
+    - cron: "0 1 * * 1,4,5,6,0"
 
 jobs:
   run-monitor:
@@ -45,6 +64,8 @@ jobs:
           APP_TIMEZONE: ${{ secrets.APP_TIMEZONE }}
           DAYS_AHEAD_WARNING: ${{ github.event.inputs.days_ahead_warning || '3' }}
           SEND_EMAIL: ${{ github.event.inputs.send_email || 'true' }}
+          FORCE_SEND_EMAIL: ${{ github.event.inputs.force_send_email || 'false' }}
+          RUN_EVENT_NAME: ${{ github.event_name }}
           EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
           EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
@@ -52,6 +73,17 @@ jobs:
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
         run: |
           python -m src.main
+
+      - name: Print app log
+        if: always()
+        run: |
+          echo "===== APP LOG START ====="
+          if [ -f data/logs/app.log ]; then
+            cat data/logs/app.log
+          else
+            echo "app.log not found"
+          fi
+          echo "===== APP LOG END ====="
 
       - name: Upload reports artifact
         if: always()
@@ -63,4 +95,5 @@ jobs:
             data/processed/
             data/snapshots/
             data/logs/
+            storage/
           if-no-files-found: ignore

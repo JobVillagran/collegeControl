@@ -14,8 +14,9 @@ PROCESSED_DIR = DATA_DIR / "processed"
 LOGS_DIR = DATA_DIR / "logs"
 REPORTS_DIR = BASE_DIR / "reports"
 TEMPLATES_DIR = BASE_DIR / "src" / "templates"
+STORAGE_DIR = BASE_DIR / "storage"
 
-for path in [DATA_DIR, SNAPSHOTS_DIR, PROCESSED_DIR, LOGS_DIR, REPORTS_DIR]:
+for path in [DATA_DIR, SNAPSHOTS_DIR, PROCESSED_DIR, LOGS_DIR, REPORTS_DIR, STORAGE_DIR]:
     path.mkdir(parents=True, exist_ok=True)
 
 
@@ -53,6 +54,8 @@ CANVAS_API_TOKEN = get_env_str("CANVAS_API_TOKEN")
 APP_TIMEZONE = get_env_str("APP_TIMEZONE", "America/Guatemala")
 DAYS_AHEAD_WARNING = get_env_int("DAYS_AHEAD_WARNING", 3)
 SEND_EMAIL = get_env_bool("SEND_EMAIL", True)
+FORCE_SEND_EMAIL = get_env_bool("FORCE_SEND_EMAIL", False)
+RUN_EVENT_NAME = get_env_str("RUN_EVENT_NAME", "")
 
 EMAIL_SMTP_HOST = get_env_str("EMAIL_SMTP_HOST", "smtp.gmail.com")
 EMAIL_SMTP_PORT = get_env_int("EMAIL_SMTP_PORT", 587)
@@ -71,3 +74,5 @@ SUMMARY_HTML_FILE = REPORTS_DIR / "latest_summary.html"
 SUMMARY_TXT_FILE = REPORTS_DIR / "latest_summary.txt"
 
 APP_LOG_FILE = LOGS_DIR / "app.log"
+
+NOTIFICATION_STATE_FILE = STORAGE_DIR / "notification_state.json"
