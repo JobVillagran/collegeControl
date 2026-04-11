@@ -16,9 +16,18 @@ on:
         required: true
         default: "3"
         type: string
+
   schedule:
-    - cron: "0 13 * * 1-5"
-    - cron: "0 2 * * 2-6"
+    # Wednesday, Thursday, Friday, Saturday, Sunday
+    # 7:00 AM Guatemala = 13:00 UTC
+    - cron: "0 13 * * 3,4,5,6,0"
+
+    # 1:00 PM Guatemala = 19:00 UTC
+    - cron: "0 19 * * 3,4,5,6,0"
+
+    # 7:00 PM Guatemala = 01:00 UTC next day
+    # For local GT days Wed, Thu, Fri, Sat, Sun -> UTC days Thu, Fri, Sat, Sun, Mon
+    - cron: "0 1 * * 1,4,5,6,0"
 
 jobs:
   run-monitor:
@@ -63,4 +72,5 @@ jobs:
             data/processed/
             data/snapshots/
             data/logs/
+            storage/
           if-no-files-found: ignore

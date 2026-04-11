@@ -14,8 +14,9 @@ PROCESSED_DIR = DATA_DIR / "processed"
 LOGS_DIR = DATA_DIR / "logs"
 REPORTS_DIR = BASE_DIR / "reports"
 TEMPLATES_DIR = BASE_DIR / "src" / "templates"
+STORAGE_DIR = BASE_DIR / "storage"
 
-for path in [DATA_DIR, SNAPSHOTS_DIR, PROCESSED_DIR, LOGS_DIR, REPORTS_DIR]:
+for path in [DATA_DIR, SNAPSHOTS_DIR, PROCESSED_DIR, LOGS_DIR, REPORTS_DIR, STORAGE_DIR]:
     path.mkdir(parents=True, exist_ok=True)
 
 
@@ -71,3 +72,5 @@ SUMMARY_HTML_FILE = REPORTS_DIR / "latest_summary.html"
 SUMMARY_TXT_FILE = REPORTS_DIR / "latest_summary.txt"
 
 APP_LOG_FILE = LOGS_DIR / "app.log"
+
+NOTIFICATION_STATE_FILE = STORAGE_DIR / "notification_state.json"
