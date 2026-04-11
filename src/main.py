@@ -1,48 +1,41 @@
 from __future__ import annotations
 
-from src.bootstrap import BrowserManager
-from src.services.auth_service import AuthService
+from config.constants import SUMMARY_TITLE
+from config.settings import CHANGES_FILE, SEND_EMAIL, UPCOMING_FILE
+from src.services.comparison_service import ComparisonService
+from src.services.config_validator import validate_required_config
+from src.services.email_service import EmailService
 from src.services.scraping_service import ScrapingService
 from src.services.snapshot_service import SnapshotService
-from src.services.comparison_service import ComparisonService
 from src.services.summary_service import SummaryService
-from src.services.email_service import EmailService
-from src.utils.logger import get_logger
 from src.utils.file_utils import write_json
-from config.settings import CHANGES_FILE, UPCOMING_FILE
-from config.constants import SUMMARY_TITLE
-from config.settings import SEND_EMAIL
-from src.services.config_validator import validate_required_config
-
-validate_required_config()
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
 def main() -> None:
+    validate_required_config()
     logger.info("Starting university monitor.")
 
     snapshot_service = SnapshotService()
     comparison_service = ComparisonService()
     summary_service = SummaryService()
     email_service = EmailService()
+    scraping_service = ScrapingService()
 
     previous_snapshot = snapshot_service.load_previous_snapshot()
 
-    with BrowserManager() as page:
-        auth_service = AuthService(page)
-        scraping_service = ScrapingService(page)
+    logger.info("Fetching courses from Canvas API.")
+    courses = scraping_service.get_courses()
 
-        logger.info("Logging into Canvas.")
-        auth_service.login()
+    logger.info("Fetching assignments from Canvas API.")
+    assignments = scraping_service.get_assignments(courses)
 
-        logger.info("Scraping courses.")
-        courses = scraping_service.get_courses()
-
-        logger.info("Scraping assignments.")
-        assignments = scraping_service.get_assignments(courses)
-
-    current_snapshot = snapshot_service.build_snapshot(courses=courses, assignments=assignments)
+    current_snapshot = snapshot_service.build_snapshot(
+        courses=courses,
+        assignments=assignments,
+    )
     snapshot_service.save_current_snapshot(current_snapshot)
 
     changes = comparison_service.compare(previous_snapshot, current_snapshot)
@@ -64,9 +57,8 @@ def main() -> None:
     else:
         logger.info("SEND_EMAIL is false. Skipping email delivery.")
 
-    snapshot_service.rotate_snapshots(current_snapshot)
-
     logger.info("University monitor finished successfully.")
+
 
 if __name__ == "__main__":
     main()

@@ -18,20 +18,47 @@ TEMPLATES_DIR = BASE_DIR / "src" / "templates"
 for path in [DATA_DIR, SNAPSHOTS_DIR, PROCESSED_DIR, LOGS_DIR, REPORTS_DIR]:
     path.mkdir(parents=True, exist_ok=True)
 
-CANVAS_BASE_URL = os.getenv("CANVAS_BASE_URL", "").strip()
-CANVAS_LOGIN_URL = os.getenv("CANVAS_LOGIN_URL", "").strip()
-CANVAS_EMAIL = os.getenv("CANVAS_EMAIL", "").strip()
-CANVAS_PASSWORD = os.getenv("CANVAS_PASSWORD", "").strip()
 
-APP_TIMEZONE = os.getenv("APP_TIMEZONE", "America/Guatemala").strip()
-HEADLESS = os.getenv("HEADLESS", "true").strip().lower() == "true"
-DAYS_AHEAD_WARNING = int(os.getenv("DAYS_AHEAD_WARNING", "3"))
+def get_env_str(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    return value if value else default
 
-EMAIL_SMTP_HOST = os.getenv("EMAIL_SMTP_HOST", "smtp.gmail.com").strip()
-EMAIL_SMTP_PORT = int(os.getenv("EMAIL_SMTP_PORT", "587"))
-EMAIL_SENDER = os.getenv("EMAIL_SENDER", "").strip()
-EMAIL_APP_PASSWORD = os.getenv("EMAIL_APP_PASSWORD", "").strip()
-EMAIL_RECIPIENT = os.getenv("EMAIL_RECIPIENT", "").strip()
+
+def get_env_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip()
+    if not value:
+        return default
+    return int(value)
+
+
+def get_env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    value = value.strip().lower()
+    if not value:
+        return default
+    return value == "true"
+
+
+CANVAS_BASE_URL = get_env_str("CANVAS_BASE_URL")
+CANVAS_API_TOKEN = get_env_str("CANVAS_API_TOKEN")
+
+APP_TIMEZONE = get_env_str("APP_TIMEZONE", "America/Guatemala")
+DAYS_AHEAD_WARNING = get_env_int("DAYS_AHEAD_WARNING", 3)
+SEND_EMAIL = get_env_bool("SEND_EMAIL", True)
+
+EMAIL_SMTP_HOST = get_env_str("EMAIL_SMTP_HOST", "smtp.gmail.com")
+EMAIL_SMTP_PORT = get_env_int("EMAIL_SMTP_PORT", 587)
+EMAIL_SENDER = get_env_str("EMAIL_SENDER")
+EMAIL_APP_PASSWORD = get_env_str("EMAIL_APP_PASSWORD")
+EMAIL_RECIPIENT = get_env_str("EMAIL_RECIPIENT")
 
 CURRENT_SNAPSHOT_FILE = SNAPSHOTS_DIR / "current_snapshot.json"
 PREVIOUS_SNAPSHOT_FILE = SNAPSHOTS_DIR / "previous_snapshot.json"
@@ -44,5 +71,3 @@ SUMMARY_HTML_FILE = REPORTS_DIR / "latest_summary.html"
 SUMMARY_TXT_FILE = REPORTS_DIR / "latest_summary.txt"
 
 APP_LOG_FILE = LOGS_DIR / "app.log"
-
-SEND_EMAIL = os.getenv("SEND_EMAIL", "true").strip().lower() == "true"

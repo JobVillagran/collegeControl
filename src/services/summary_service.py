@@ -1,22 +1,30 @@
 from __future__ import annotations
 
-from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
+
 from config.settings import (
     TEMPLATES_DIR,
     SUMMARY_HTML_FILE,
-    SUMMARY_TXT_FILE,
     SUMMARY_PAYLOAD_FILE,
+    SUMMARY_TXT_FILE,
 )
 from src.utils.file_utils import write_json, write_text
 
+
 class SummaryService:
     def build_payload(self, changes: dict) -> dict:
+        upcoming = changes.get("upcoming_assignments", [])
+
+        open_now = [item for item in upcoming if item.get("status") in {"open", "open_no_due_date"}]
+        not_enabled_yet = [item for item in upcoming if item.get("status") == "not_enabled_yet"]
+
         return {
             "new_assignments": changes.get("new_assignments", []),
             "changed_assignments": changes.get("changed_assignments", []),
             "new_grades": changes.get("new_grades", []),
-            "upcoming_assignments": changes.get("upcoming_assignments", []),
+            "upcoming_assignments": upcoming,
+            "open_assignments": open_now,
+            "not_enabled_yet_assignments": not_enabled_yet,
         }
 
     def render_html(self, payload: dict) -> str:
@@ -29,19 +37,21 @@ class SummaryService:
         lines.append("University Summary")
         lines.append("")
 
-        lines.append("New Assignments:")
-        if payload["new_assignments"]:
-            for item in payload["new_assignments"]:
-                lines.append(f"- {item['course_name']} | {item['assignment_name']}")
+        lines.append("Open Assignments:")
+        if payload["open_assignments"]:
+            for item in payload["open_assignments"]:
+                lines.append(
+                    f"- {item['course_name']} | {item['assignment_name']} | Due: {item.get('due_date_iso')}"
+                )
         else:
             lines.append("- None")
 
         lines.append("")
-        lines.append("Changed Assignments:")
-        if payload["changed_assignments"]:
-            for item in payload["changed_assignments"]:
+        lines.append("Not Enabled Yet:")
+        if payload["not_enabled_yet_assignments"]:
+            for item in payload["not_enabled_yet_assignments"]:
                 lines.append(
-                    f"- {item['after']['course_name']} | {item['after']['assignment_name']}"
+                    f"- {item['course_name']} | {item['assignment_name']} | Unlocks: {item.get('unlock_at')}"
                 )
         else:
             lines.append("- None")
@@ -52,16 +62,6 @@ class SummaryService:
             for item in payload["new_grades"]:
                 lines.append(
                     f"- {item['after']['course_name']} | {item['after']['assignment_name']}"
-                )
-        else:
-            lines.append("- None")
-
-        lines.append("")
-        lines.append("Upcoming:")
-        if payload["upcoming_assignments"]:
-            for item in payload["upcoming_assignments"]:
-                lines.append(
-                    f"- {item['course_name']} | {item['assignment_name']} | {item.get('due_date_iso')}"
                 )
         else:
             lines.append("- None")
