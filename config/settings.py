@@ -44,3 +44,5 @@ SUMMARY_HTML_FILE = REPORTS_DIR / "latest_summary.html"
 SUMMARY_TXT_FILE = REPORTS_DIR / "latest_summary.txt"
 
 APP_LOG_FILE = LOGS_DIR / "app.log"
+
+SEND_EMAIL = os.getenv("SEND_EMAIL", "true").strip().lower() == "true"

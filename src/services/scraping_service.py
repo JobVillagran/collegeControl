@@ -6,6 +6,7 @@ from src.pages.assignments_page import AssignmentsPage
 from src.parsers.date_parser import extract_due_date_iso
 from config.constants import STATUS_CLOSED, STATUS_GRADED, STATUS_UPCOMING, STATUS_UNKNOWN
 
+
 class ScrapingService:
     def __init__(self, page: Page) -> None:
         self.page = page
