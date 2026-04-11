@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from config.settings import APP_TIMEZONE, NOTIFICATION_STATE_FILE
+from config.settings import (
+    APP_TIMEZONE,
+    FORCE_SEND_EMAIL,
+    NOTIFICATION_STATE_FILE,
+    RUN_EVENT_NAME,
+)
 from src.utils.file_utils import read_json, write_json
 
 
@@ -22,28 +27,31 @@ class NotificationDecisionService:
         now = datetime.now(self.timezone)
         slot = self._get_time_slot(now)
         local_date = now.strftime("%Y-%m-%d")
+        local_time = now.strftime("%Y-%m-%d %I:%M:%S %p")
+
+        if RUN_EVENT_NAME == "workflow_dispatch" and FORCE_SEND_EMAIL:
+            return True, f"Manual dispatch forced email sending at local time {local_time}."
 
         if slot is None:
-            return False, "Current run is outside configured notification slots."
+            return False, f"Current run is outside configured notification slots. Local time: {local_time}"
 
         if slot == "morning":
-            reason = "Morning summary is always sent."
-            return True, reason
+            return True, f"Morning summary is always sent. Local time: {local_time}"
 
         if slot == "midday":
             has_new_critical = self._has_new_critical_alert(payload)
             if has_new_critical:
-                return True, "Midday alert triggered by new critical change."
-            return False, "No new critical alerts for midday run."
+                return True, f"Midday alert triggered by new critical change. Local time: {local_time}"
+            return False, f"No new critical alerts for midday run. Local time: {local_time}"
 
         if slot == "evening":
             if self._has_actionable_content(payload) or self._has_relevant_changes(payload):
                 if not self._already_sent_slot(local_date, slot):
-                    return True, "Evening summary triggered by actionable content or relevant changes."
-                return False, "Evening summary already sent for this date."
-            return False, "No actionable content for evening run."
+                    return True, f"Evening summary triggered by actionable content or relevant changes. Local time: {local_time}"
+                return False, f"Evening summary already sent for this date. Local time: {local_time}"
+            return False, f"No actionable content for evening run. Local time: {local_time}"
 
-        return False, "No matching notification rule."
+        return False, f"No matching notification rule. Local time: {local_time}"
 
     def mark_email_sent(self, payload: dict) -> None:
         now = datetime.now(self.timezone)

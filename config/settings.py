@@ -54,6 +54,8 @@ CANVAS_API_TOKEN = get_env_str("CANVAS_API_TOKEN")
 APP_TIMEZONE = get_env_str("APP_TIMEZONE", "America/Guatemala")
 DAYS_AHEAD_WARNING = get_env_int("DAYS_AHEAD_WARNING", 3)
 SEND_EMAIL = get_env_bool("SEND_EMAIL", True)
+FORCE_SEND_EMAIL = get_env_bool("FORCE_SEND_EMAIL", False)
+RUN_EVENT_NAME = get_env_str("RUN_EVENT_NAME", "")
 
 EMAIL_SMTP_HOST = get_env_str("EMAIL_SMTP_HOST", "smtp.gmail.com")
 EMAIL_SMTP_PORT = get_env_int("EMAIL_SMTP_PORT", 587)
