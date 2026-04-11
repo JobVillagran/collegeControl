@@ -33,7 +33,7 @@ class CanvasAPIService:
         if response.status_code == 404:
             raise RuntimeError(
                 f"Canvas API returned 404 Not Found for URL: {url}. "
-                "Check that CANVAS_BASE_URL is the root Canvas domain only, for example: https://your-school.instructure.com"
+                "Check that CANVAS_BASE_URL is the root Canvas domain only."
             )
 
         response.raise_for_status()
@@ -56,6 +56,11 @@ class CanvasAPIService:
         for item in data:
             course_id = item.get("id")
             name = item.get("name")
+            course_code = item.get("course_code")
+            workflow_state = item.get("workflow_state")
+            start_at = item.get("start_at")
+            end_at = item.get("end_at")
+
             if not course_id or not name:
                 continue
 
@@ -63,13 +68,22 @@ class CanvasAPIService:
                 {
                     "course_id": str(course_id),
                     "course_name": name,
+                    "course_code": course_code,
                     "course_url": f"{self.base_url}/courses/{course_id}",
+                    "workflow_state": workflow_state,
+                    "start_at": start_at,
+                    "end_at": end_at,
                 }
             )
 
         return courses
 
-    def get_assignments_for_course(self, course_id: str, course_name: str, course_url: str) -> list[dict]:
+    def get_assignments_for_course(
+        self,
+        course_id: str,
+        course_name: str,
+        course_url: str,
+    ) -> list[dict]:
         data = self._get(
             f"/api/v1/courses/{course_id}/assignments",
             params={
