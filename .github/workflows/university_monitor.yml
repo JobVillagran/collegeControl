@@ -45,7 +45,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          playwright install chromium
+          playwright install --with-deps chromium
 
       - name: Run monitor
         env:
@@ -64,3 +64,15 @@ jobs:
           EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
         run: |
           python -m src.main
+
+      - name: Upload reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: university-monitor-reports
+          path: |
+            reports/
+            data/processed/
+            data/snapshots/
+            data/logs/
+          if-no-files-found: ignore
