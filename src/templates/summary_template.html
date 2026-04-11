@@ -115,7 +115,22 @@
               <strong>{{ item.meta_line }}</strong>
             </div>
 
-            <div style="font-size:14px; color:#374151; margin-bottom:10px;">
+            <div
+              style="
+                font-size:18px;
+                line-height:1.35;
+                font-weight:800;
+                margin-bottom:12px;
+                color:
+                  {% if item.urgency_key == 'act_now' %}#b91c1c
+                  {% elif item.urgency_key == 'this_week' %}#a16207
+                  {% elif item.urgency_key == 'next_week' %}#1d4ed8
+                  {% elif item.urgency_key == 'third_week' %}#4338ca
+                  {% elif item.urgency_key == 'opens_same_day' %}#6d28d9
+                  {% else %}#374151
+                  {% endif %};
+              "
+            >
               {{ item.relative_time }}
             </div>
 
@@ -286,15 +301,15 @@
           {% endif %}
           {%- endmacro %}
 
-          {{ section("Accionar ahora", "Tareas con ventana corta o entrega muy próxima.", payload.sections.act_now, "task") }}
-          {{ section("Esta semana", "Tareas que se entregan dentro de la semana actual.", payload.sections.this_week, "task") }}
-          {{ section("Siguiente semana", "Lo que ya deberías ir planeando.", payload.sections.next_week, "task") }}
-          {{ section("Tercera semana", "Pendientes futuros que vale la pena tener en radar.", payload.sections.third_week, "task") }}
-          {{ section("Proyectos urgentes", "Proyectos y entregables grandes que requieren atención.", payload.sections.urgent_projects, "task") }}
-          {{ section("Se habilitan pronto", "Tareas que todavía no abren pero aparecerán pronto, por ejemplo el día de clase.", payload.sections.opens_same_day, "task") }}
-          {{ section("Sin fecha visible", "Tareas publicadas sin fecha clara.", payload.sections.no_due_date, "task") }}
-          {{ section("Cambios de deadline", "Fechas modificadas desde la última corrida.", payload.sections.changed_assignments, "changed") }}
-          {{ section("Nuevas notas", "Resultados detectados recientemente.", payload.sections.new_grades, "grade") }}
+          {{ section("Act now", "Tasks with a short action window or very close due date.", payload.sections.act_now, "task") }}
+          {{ section("This week", "Tasks due within the current week.", payload.sections.this_week, "task") }}
+          {{ section("Next week", "Items you should already start planning.", payload.sections.next_week, "task") }}
+          {{ section("Third week", "Future tasks worth keeping on your radar.", payload.sections.third_week, "task") }}
+          {{ section("Urgent projects", "Projects and large deliverables that need attention.", payload.sections.urgent_projects, "task") }}
+          {{ section("Opens soon", "Tasks that are not open yet but will be enabled soon, such as class-day labs.", payload.sections.opens_same_day, "task") }}
+          {{ section("No visible due date", "Published tasks without a clear due date.", payload.sections.no_due_date, "task") }}
+          {{ section("Deadline changes", "Due date changes detected since the last run.", payload.sections.changed_assignments, "changed") }}
+          {{ section("New grades", "Recently detected results.", payload.sections.new_grades, "grade") }}
 
           <div style="margin-top:28px; font-size:12px; color:#6b7280; text-align:center;">
             Generated automatically by College Control
