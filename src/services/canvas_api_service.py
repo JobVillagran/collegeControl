@@ -18,11 +18,29 @@ class CanvasAPIService:
             }
         )
 
+    def _build_url(self, path: str) -> str:
+        return urljoin(f"{self.base_url}/", path.lstrip("/"))
+
     def _get(self, path: str, params: dict | None = None) -> list | dict:
-        url = urljoin(f"{self.base_url}/", path.lstrip("/"))
+        url = self._build_url(path)
         response = self.session.get(url, params=params, timeout=30)
+
+        if response.status_code == 401:
+            raise RuntimeError(
+                "Canvas API returned 401 Unauthorized. The token is invalid, expired, or does not have access."
+            )
+
+        if response.status_code == 404:
+            raise RuntimeError(
+                f"Canvas API returned 404 Not Found for URL: {url}. "
+                "Check that CANVAS_BASE_URL is the root Canvas domain only, for example: https://your-school.instructure.com"
+            )
+
         response.raise_for_status()
         return response.json()
+
+    def validate_connection(self) -> dict:
+        return self._get("/api/v1/users/self")
 
     def get_courses(self) -> list[dict]:
         data = self._get(

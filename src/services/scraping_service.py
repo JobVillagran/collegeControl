@@ -8,9 +8,12 @@ class ScrapingService:
         self.canvas_api = CanvasAPIService()
 
     def get_courses(self) -> list[dict]:
+        self.canvas_api.validate_connection()
         courses = self.canvas_api.get_courses()
+
         if not courses:
-            raise RuntimeError("No courses were returned by Canvas API.")
+            raise RuntimeError("Canvas API connection worked, but no courses were returned.")
+
         return courses
 
     def get_assignments(self, courses: list[dict]) -> list[dict]:
@@ -33,4 +36,5 @@ class ScrapingService:
 
         if not all_assignments:
             raise RuntimeError("No assignments were returned by Canvas API.")
+
         return all_assignments
