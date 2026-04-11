@@ -1,0 +1,66 @@
+name: University Monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      send_email:
+        description: "Send summary email"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      headless:
+        description: "Run browser in headless mode"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      days_ahead_warning:
+        description: "Upcoming deadline window in days"
+        required: true
+        default: "3"
+        type: string
+  schedule:
+    - cron: "0 13 * * 1-5"
+    - cron: "0 2 * * 2-6"
+
+jobs:
+  run-monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+
+      - name: Run monitor
+        env:
+          CANVAS_BASE_URL: ${{ secrets.CANVAS_BASE_URL }}
+          CANVAS_LOGIN_URL: ${{ secrets.CANVAS_LOGIN_URL }}
+          CANVAS_EMAIL: ${{ secrets.CANVAS_EMAIL }}
+          CANVAS_PASSWORD: ${{ secrets.CANVAS_PASSWORD }}
+          APP_TIMEZONE: ${{ secrets.APP_TIMEZONE }}
+          HEADLESS: ${{ github.event.inputs.headless || 'true' }}
+          DAYS_AHEAD_WARNING: ${{ github.event.inputs.days_ahead_warning || '3' }}
+          SEND_EMAIL: ${{ github.event.inputs.send_email || 'true' }}
+          EMAIL_SMTP_HOST: ${{ secrets.EMAIL_SMTP_HOST }}
+          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          EMAIL_RECIPIENT: ${{ secrets.EMAIL_RECIPIENT }}
+        run: |
+          python -m src.main
