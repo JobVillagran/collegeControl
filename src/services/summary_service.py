@@ -25,6 +25,7 @@ class SummaryService:
         urgent_projects = [self._decorate_card(item) for item in groups.get("urgent_projects", [])]
         opens_same_day = [self._decorate_card(item) for item in groups.get("opens_same_day", [])]
         no_due_date = [self._decorate_card(item) for item in groups.get("no_due_date", [])]
+        submitted = [self._decorate_card(item) for item in groups.get("submitted", [])]
 
         new_grades = [self._decorate_grade_card(item) for item in changes.get("new_grades", [])]
         changed_assignments = [self._decorate_changed_card(item) for item in changes.get("changed_assignments", [])]
@@ -39,6 +40,7 @@ class SummaryService:
 
         total_urgent = len(act_now)
         total_opens_soon = len(opens_same_day)
+        total_projects = len(urgent_projects)
 
         return {
             "generated_at": self._format_now(),
@@ -46,8 +48,7 @@ class SummaryService:
                 "total_actionable": total_actionable,
                 "total_urgent": total_urgent,
                 "opens_soon": total_opens_soon,
-                "urgent_projects": len(urgent_projects),
-                "new_grades": len(new_grades),
+                "urgent_projects": total_projects,
             },
             "sections": {
                 "act_now": act_now,
@@ -57,6 +58,7 @@ class SummaryService:
                 "urgent_projects": urgent_projects,
                 "opens_same_day": opens_same_day,
                 "no_due_date": no_due_date,
+                "submitted": submitted,
                 "changed_assignments": changed_assignments,
                 "new_grades": new_grades,
             },
@@ -99,6 +101,10 @@ class SummaryService:
         lines.extend(self._section_lines(sections["opens_same_day"], use_unlock=True))
 
         lines.append("")
+        lines.append("Submitted:")
+        lines.extend(self._section_lines(sections["submitted"]))
+
+        lines.append("")
         lines.append("No due date:")
         lines.extend(self._section_lines(sections["no_due_date"]))
 
@@ -135,19 +141,23 @@ class SummaryService:
 
         lines = []
         for item in items:
+            submitted_suffix = " | Submitted" if item.get("is_submitted") else ""
             if use_unlock:
                 lines.append(
-                    f"- {item['course_name']} | {item['assignment_name']} | Opens: {item.get('unlock_display', 'N/A')} | {item.get('relative_time', '')}"
+                    f"- {item['course_name']} | {item['assignment_name']} | Opens: {item.get('unlock_display', 'N/A')} | {item.get('relative_time', '')}{submitted_suffix}"
                 )
             else:
                 lines.append(
-                    f"- {item['course_name']} | {item['assignment_name']} | Due: {item.get('due_display', 'N/A')} | {item.get('relative_time', '')}"
+                    f"- {item['course_name']} | {item['assignment_name']} | Due: {item.get('due_display', 'N/A')} | {item.get('relative_time', '')}{submitted_suffix}"
                 )
         return lines
 
     def _decorate_card(self, item: dict) -> dict:
         due_display = self._format_iso(item.get("due_date_iso"))
         unlock_display = self._format_iso(item.get("unlock_at"))
+
+        is_submitted = bool(item.get("submitted_at"))
+        is_graded = bool(item.get("score") is not None)
 
         return {
             "course_name": item.get("course_name"),
@@ -164,6 +174,11 @@ class SummaryService:
             "badge_color": self._badge_color(item.get("urgency_key")),
             "border_color": self._border_color(item.get("urgency_key")),
             "meta_line": self._meta_line(item, due_display, unlock_display),
+            "is_submitted": is_submitted,
+            "submission_label": "Submitted" if is_submitted else None,
+            "submission_bg": "#DCFCE7" if is_submitted else None,
+            "submission_color": "#166534" if is_submitted else None,
+            "is_graded": is_graded,
         }
 
     def _decorate_grade_card(self, item: dict) -> dict:
@@ -250,6 +265,7 @@ class SummaryService:
             "third_week": "#E0E7FF",
             "opens_same_day": "#EDE9FE",
             "no_due_date": "#E5E7EB",
+            "submitted": "#DCFCE7",
         }
         return mapping.get(urgency_key, "#E5E7EB")
 
@@ -261,6 +277,7 @@ class SummaryService:
             "third_week": "#4338CA",
             "opens_same_day": "#6D28D9",
             "no_due_date": "#374151",
+            "submitted": "#166534",
         }
         return mapping.get(urgency_key, "#374151")
 
@@ -272,5 +289,6 @@ class SummaryService:
             "third_week": "#6366F1",
             "opens_same_day": "#8B5CF6",
             "no_due_date": "#9CA3AF",
+            "submitted": "#22C55E",
         }
         return mapping.get(urgency_key, "#D1D5DB")

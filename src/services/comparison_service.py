@@ -65,6 +65,7 @@ class ComparisonService:
             "urgent_projects": [],
             "opens_same_day": [],
             "no_due_date": [],
+            "submitted": [],
         }
 
         for assignment in assignments:
@@ -75,6 +76,11 @@ class ComparisonService:
             status = enriched.get("status")
             urgency = enriched.get("urgency_key")
             is_project = enriched.get("is_project", False)
+            is_submitted = enriched.get("is_submitted", False)
+
+            if is_submitted:
+                groups["submitted"].append(enriched)
+                continue
 
             if status == "not_enabled_yet":
                 groups["opens_same_day"].append(enriched)
@@ -104,6 +110,7 @@ class ComparisonService:
 
         due_dt = self._parse_dt(assignment.get("due_date_iso"))
         unlock_dt = self._parse_dt(assignment.get("unlock_at"))
+        submitted_at = assignment.get("submitted_at")
 
         hours_until_due = None
         if due_dt is not None:
@@ -116,6 +123,13 @@ class ComparisonService:
         enriched["hours_until_due"] = hours_until_due
         enriched["hours_until_unlock"] = hours_until_unlock
         enriched["is_project"] = self._is_project(assignment.get("assignment_name"))
+        enriched["is_submitted"] = bool(submitted_at)
+
+        if enriched["is_submitted"]:
+            enriched["urgency_key"] = "submitted"
+            enriched["urgency_label"] = "Submitted"
+            enriched["action_required"] = "Wait for grading or review if needed"
+            return enriched
 
         if assignment.get("status") == "not_enabled_yet":
             if hours_until_unlock is None:
@@ -206,6 +220,7 @@ class ComparisonService:
             "third_week": 3,
             "opens_same_day": 4,
             "no_due_date": 5,
+            "submitted": 6,
         }
 
         if item.get("status") == "not_enabled_yet":
