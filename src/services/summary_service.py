@@ -135,19 +135,23 @@ class SummaryService:
 
         lines = []
         for item in items:
+            submitted_suffix = " | Submitted" if item.get("is_submitted") else ""
             if use_unlock:
                 lines.append(
-                    f"- {item['course_name']} | {item['assignment_name']} | Opens: {item.get('unlock_display', 'N/A')} | {item.get('relative_time', '')}"
+                    f"- {item['course_name']} | {item['assignment_name']} | Opens: {item.get('unlock_display', 'N/A')} | {item.get('relative_time', '')}{submitted_suffix}"
                 )
             else:
                 lines.append(
-                    f"- {item['course_name']} | {item['assignment_name']} | Due: {item.get('due_display', 'N/A')} | {item.get('relative_time', '')}"
+                    f"- {item['course_name']} | {item['assignment_name']} | Due: {item.get('due_display', 'N/A')} | {item.get('relative_time', '')}{submitted_suffix}"
                 )
         return lines
 
     def _decorate_card(self, item: dict) -> dict:
         due_display = self._format_iso(item.get("due_date_iso"))
         unlock_display = self._format_iso(item.get("unlock_at"))
+
+        is_submitted = bool(item.get("submitted_at"))
+        is_graded = bool(item.get("score") is not None)
 
         return {
             "course_name": item.get("course_name"),
@@ -164,6 +168,11 @@ class SummaryService:
             "badge_color": self._badge_color(item.get("urgency_key")),
             "border_color": self._border_color(item.get("urgency_key")),
             "meta_line": self._meta_line(item, due_display, unlock_display),
+            "is_submitted": is_submitted,
+            "submission_label": "Submitted" if is_submitted else None,
+            "submission_bg": "#DCFCE7" if is_submitted else None,
+            "submission_color": "#166534" if is_submitted else None,
+            "is_graded": is_graded,
         }
 
     def _decorate_grade_card(self, item: dict) -> dict:

@@ -113,6 +113,9 @@ class CanvasAPIService:
             score = submission.get("score")
             submitted_at = submission.get("submitted_at")
             missing = submission.get("missing")
+            submission_workflow_state = submission.get("workflow_state")
+            late = submission.get("late")
+            excused = submission.get("excused")
 
             assignments.append(
                 {
@@ -131,7 +134,10 @@ class CanvasAPIService:
                     "lock_explanation": lock_explanation,
                     "workflow_state": workflow_state,
                     "submitted_at": submitted_at,
+                    "submission_workflow_state": submission_workflow_state,
                     "missing": missing,
+                    "late": late,
+                    "excused": excused,
                     "score": str(score) if score is not None else None,
                     "max_score": points_possible,
                     "status": "unknown",
