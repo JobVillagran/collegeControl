@@ -25,6 +25,7 @@ class SummaryService:
         urgent_projects = [self._decorate_card(item) for item in groups.get("urgent_projects", [])]
         opens_same_day = [self._decorate_card(item) for item in groups.get("opens_same_day", [])]
         no_due_date = [self._decorate_card(item) for item in groups.get("no_due_date", [])]
+        submitted = [self._decorate_card(item) for item in groups.get("submitted", [])]
 
         new_grades = [self._decorate_grade_card(item) for item in changes.get("new_grades", [])]
         changed_assignments = [self._decorate_changed_card(item) for item in changes.get("changed_assignments", [])]
@@ -39,6 +40,7 @@ class SummaryService:
 
         total_urgent = len(act_now)
         total_opens_soon = len(opens_same_day)
+        total_projects = len(urgent_projects)
 
         return {
             "generated_at": self._format_now(),
@@ -46,8 +48,7 @@ class SummaryService:
                 "total_actionable": total_actionable,
                 "total_urgent": total_urgent,
                 "opens_soon": total_opens_soon,
-                "urgent_projects": len(urgent_projects),
-                "new_grades": len(new_grades),
+                "urgent_projects": total_projects,
             },
             "sections": {
                 "act_now": act_now,
@@ -57,6 +58,7 @@ class SummaryService:
                 "urgent_projects": urgent_projects,
                 "opens_same_day": opens_same_day,
                 "no_due_date": no_due_date,
+                "submitted": submitted,
                 "changed_assignments": changed_assignments,
                 "new_grades": new_grades,
             },
@@ -97,6 +99,10 @@ class SummaryService:
         lines.append("")
         lines.append("Opens soon:")
         lines.extend(self._section_lines(sections["opens_same_day"], use_unlock=True))
+
+        lines.append("")
+        lines.append("Submitted:")
+        lines.extend(self._section_lines(sections["submitted"]))
 
         lines.append("")
         lines.append("No due date:")
@@ -259,6 +265,7 @@ class SummaryService:
             "third_week": "#E0E7FF",
             "opens_same_day": "#EDE9FE",
             "no_due_date": "#E5E7EB",
+            "submitted": "#DCFCE7",
         }
         return mapping.get(urgency_key, "#E5E7EB")
 
@@ -270,6 +277,7 @@ class SummaryService:
             "third_week": "#4338CA",
             "opens_same_day": "#6D28D9",
             "no_due_date": "#374151",
+            "submitted": "#166534",
         }
         return mapping.get(urgency_key, "#374151")
 
@@ -281,5 +289,6 @@ class SummaryService:
             "third_week": "#6366F1",
             "opens_same_day": "#8B5CF6",
             "no_due_date": "#9CA3AF",
+            "submitted": "#22C55E",
         }
         return mapping.get(urgency_key, "#D1D5DB")

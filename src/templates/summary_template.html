@@ -42,7 +42,7 @@
         <div style="padding:8px 20px 4px 20px;">
           <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
             <tr>
-              <td style="padding:6px; width:20%;">
+              <td style="padding:6px; width:25%;">
                 <div style="background:#ffffff; border:1px solid #e5e7eb; border-radius:20px; padding:14px 8px; text-align:center;">
                   <div style="font-size:11px; color:#64748b;">Actionable</div>
                   <div style="font-size:24px; font-weight:800; color:#111827; margin-top:4px;">
@@ -50,7 +50,7 @@
                   </div>
                 </div>
               </td>
-              <td style="padding:6px; width:20%;">
+              <td style="padding:6px; width:25%;">
                 <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:20px; padding:14px 8px; text-align:center;">
                   <div style="font-size:11px; color:#be123c;">Urgent</div>
                   <div style="font-size:24px; font-weight:800; color:#be123c; margin-top:4px;">
@@ -58,7 +58,7 @@
                   </div>
                 </div>
               </td>
-              <td style="padding:6px; width:20%;">
+              <td style="padding:6px; width:25%;">
                 <div style="background:#eef2ff; border:1px solid #c7d2fe; border-radius:20px; padding:14px 8px; text-align:center;">
                   <div style="font-size:11px; color:#4338ca;">Opens soon</div>
                   <div style="font-size:24px; font-weight:800; color:#4338ca; margin-top:4px;">
@@ -66,19 +66,11 @@
                   </div>
                 </div>
               </td>
-              <td style="padding:6px; width:20%;">
+              <td style="padding:6px; width:25%;">
                 <div style="background:#fff7ed; border:1px solid #fdba74; border-radius:20px; padding:14px 8px; text-align:center;">
                   <div style="font-size:11px; color:#c2410c;">Projects</div>
                   <div style="font-size:24px; font-weight:800; color:#c2410c; margin-top:4px;">
                     {{ payload.summary_stats.urgent_projects }}
-                  </div>
-                </div>
-              </td>
-              <td style="padding:6px; width:20%;">
-                <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:20px; padding:14px 8px; text-align:center;">
-                  <div style="font-size:11px; color:#047857;">Grades</div>
-                  <div style="font-size:24px; font-weight:800; color:#047857; margin-top:4px;">
-                    {{ payload.summary_stats.new_grades }}
                   </div>
                 </div>
               </td>
@@ -348,6 +340,7 @@
           {{ section("Third week", "Future tasks worth keeping on your radar.", payload.sections.third_week, "task") }}
           {{ section("Urgent projects", "Projects and large deliverables that need attention.", payload.sections.urgent_projects, "task") }}
           {{ section("Opens soon", "Tasks that are not open yet but will be enabled soon, such as class-day labs.", payload.sections.opens_same_day, "task") }}
+          {{ section("Submitted", "Tasks already delivered and pending grading or review.", payload.sections.submitted, "task") }}
           {{ section("No visible due date", "Published tasks without a clear due date.", payload.sections.no_due_date, "task") }}
           {{ section("Deadline changes", "Due date changes detected since the last run.", payload.sections.changed_assignments, "changed") }}
           {{ section("New grades", "Recently detected results.", payload.sections.new_grades, "grade") }}
