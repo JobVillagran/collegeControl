@@ -27,20 +27,19 @@ class ComparisonService:
             "no_due_date": [],
         }
 
-        for a in assignments:
-            enriched = dict(a)
-            due_dt = self._parse_dt(a.get("due_date_iso"))
-            unlock_dt = self._parse_dt(a.get("unlock_at"))
+        for assignment in assignments:
+            enriched = dict(assignment)
+            due_dt = self._parse_dt(assignment.get("due_date_iso"))
 
-            if a.get("status") == "submitted":
+            if assignment.get("status") == "submitted":
                 groups["submitted"].append(enriched)
                 continue
 
-            if a.get("status") == "not_enabled_yet":
+            if assignment.get("status") == "not_enabled_yet":
                 groups["opens_soon"].append(enriched)
                 continue
 
-            if a.get("status") == "open_no_due_date":
+            if assignment.get("status") == "open_no_due_date":
                 groups["no_due_date"].append(enriched)
                 continue
 
@@ -48,9 +47,12 @@ class ComparisonService:
                 continue
 
             hours = (due_dt - now).total_seconds() / 3600
-            enriched["hours_until_due"] = hours
+            if hours < 0:
+                continue
 
-            is_project = self._is_project(a.get("assignment_name"))
+            enriched["hours_until_due"] = round(hours, 2)
+
+            is_project = self._is_project(assignment.get("assignment_name"))
 
             if hours <= 48:
                 groups["act_now"].append(enriched)
@@ -72,6 +74,15 @@ class ComparisonService:
     def _is_project(self, name: str | None) -> bool:
         if not name:
             return False
-        name = name.lower()
-        keywords = ["proyecto", "project", "entrega final", "plan de trabajo", "proposal", "propuesta"]
-        return any(k in name for k in keywords)
+        normalized = name.lower()
+        keywords = [
+            "proyecto",
+            "project",
+            "entrega final",
+            "plan de trabajo",
+            "proposal",
+            "propuesta",
+            "avance",
+            "final",
+        ]
+        return any(keyword in normalized for keyword in keywords)

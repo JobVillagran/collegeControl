@@ -43,12 +43,17 @@ class GradeAnalyticsService:
         total_points = float(rule["total_points"])
         passing_score = float(rule["passing_score"])
         remaining_to_pass = max(0.0, round(passing_score - earned_points, 2))
-        known_progress_percent = round((earned_points / total_points) * 100, 2) if total_points else 0.0
 
-        risk_level = self._risk_level(
+        known_progress_percent = round((earned_points / total_points) * 100, 2) if total_points else 0.0
+        published_progress_percent = round((published_points / total_points) * 100, 2) if total_points else 0.0
+        pass_progress_percent = round((earned_points / passing_score) * 100, 2) if passing_score else 0.0
+
+        risk_level, risk_reason = self._risk_level(
             earned_points=earned_points,
             passing_score=passing_score,
             submitted_pending_points=submitted_pending_points,
+            published_points=published_points,
+            graded_count=len(graded),
         )
 
         return {
@@ -62,10 +67,13 @@ class GradeAnalyticsService:
             "passing_score": passing_score,
             "total_points": total_points,
             "known_progress_percent": known_progress_percent,
+            "published_progress_percent": published_progress_percent,
+            "pass_progress_percent": min(pass_progress_percent, 100.0),
             "graded_count": len(graded),
             "submitted_pending_count": len(submitted_pending),
             "open_count": len(open_assignments),
             "risk_level": risk_level,
+            "risk_reason": risk_reason,
             "rule": rule,
         }
 
@@ -76,9 +84,24 @@ class GradeAnalyticsService:
             return {**self.rules["default"], **overrides[course_code]}
         return self.rules["default"]
 
-    def _risk_level(self, earned_points: float, passing_score: float, submitted_pending_points: float) -> str:
+    def _risk_level(
+        self,
+        earned_points: float,
+        passing_score: float,
+        submitted_pending_points: float,
+        published_points: float,
+        graded_count: int,
+    ) -> tuple[str, str]:
+        if published_points == 0 and graded_count == 0:
+            return "not_enough_data", "No grades published yet."
+
         if earned_points >= passing_score:
-            return "healthy"
+            return "healthy", "Passing score already reached."
+
         if earned_points + submitted_pending_points >= passing_score:
-            return "watch"
-        return "at_risk"
+            return "watch", "Passing depends on pending submitted work."
+
+        if published_points < 15:
+            return "watch", "Too early to estimate with confidence."
+
+        return "at_risk", "Current published performance is below passing pace."
