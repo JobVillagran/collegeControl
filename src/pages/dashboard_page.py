@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.pages.base_page import BasePage
-from src.models.course import Course
+from pages.base_page import BasePage
+from models.course import Course
 
 class DashboardPage(BasePage):
     def get_courses(self) -> list[Course]:

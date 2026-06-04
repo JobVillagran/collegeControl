@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.pages.base_page import BasePage
-from src.models.assignment import Assignment
+from pages.base_page import BasePage
+from models.assignment import Assignment
 from config.constants import STATUS_UNKNOWN
 
 class AssignmentsPage(BasePage):

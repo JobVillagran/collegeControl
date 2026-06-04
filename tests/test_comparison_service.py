@@ -1,4 +1,4 @@
-from src.services.comparison_service import ComparisonService
+from backend.src.services.comparison_service import ComparisonService
 
 def test_compare_detects_new_assignment():
     service = ComparisonService()

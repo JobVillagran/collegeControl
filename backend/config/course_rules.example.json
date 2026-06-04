@@ -1,0 +1,20 @@
+{
+  "default": {
+    "passing_score": 61,
+    "zone_points": 35,
+    "partial_1_points": 10,
+    "partial_2_points": 20,
+    "final_points": 35,
+    "total_points": 100
+  },
+  "overrides": {
+    "120261900022B": {
+      "passing_score": 61,
+      "zone_points": 25,
+      "partial_1_points": 10,
+      "partial_2_points": 20,
+      "final_points": 35,
+      "total_points": 90
+    }
+  }
+}

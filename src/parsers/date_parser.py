@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from dateutil import parser as date_parser
 import pytz
-from config.settings import APP_TIMEZONE
+from backend.config.settings import APP_TIMEZONE
 
 SPANISH_MONTHS = {
     "ene": "Jan",

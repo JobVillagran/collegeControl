@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 import pytz
-from config.settings import APP_TIMEZONE
+from backend.config.settings import APP_TIMEZONE
 
 def now_local() -> datetime:
     tz = pytz.timezone(APP_TIMEZONE)
