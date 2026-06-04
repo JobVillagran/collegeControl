@@ -10,14 +10,27 @@ function StatCard({ label, value, tone = "default" }) {
   );
 }
 
-function AssignmentList({ title, items, badge }) {
+function SyncBanner({ sync }) {
+  if (!sync) return null;
+
+  return (
+    <div className={`sync-banner ${sync.status}`}>
+      <strong>{sync.status === "healthy" ? "Sync healthy" : "Sync issue"}</strong>
+      <span>{sync.message}</span>
+      {sync.last_synced_at ? (
+        <small>Last sync: {new Date(sync.last_synced_at).toLocaleString()}</small>
+      ) : null}
+    </div>
+  );
+}
+
+function AssignmentList({ title, items }) {
   if (!items || items.length === 0) return null;
 
   return (
     <section className="panel">
       <div className="panel-header">
         <h2>{title}</h2>
-        {badge ? <span className="section-badge">{badge}</span> : null}
       </div>
 
       <div className="assignment-list">
@@ -40,6 +53,14 @@ function AssignmentList({ title, items, badge }) {
               <div className="submitted-note">Submitted • waiting for grading</div>
             ) : null}
 
+            {typeof item.hours_until_due === "number" ? (
+              <div className="time-note">
+                {item.hours_until_due <= 48
+                  ? `Due in ${item.hours_until_due.toFixed(1)}h`
+                  : `Remaining: ${item.hours_until_due.toFixed(1)}h`}
+              </div>
+            ) : null}
+
             {item.assignment_url ? (
               <a className="action-link" href={item.assignment_url} target="_blank" rel="noreferrer">
                 Open in Canvas
@@ -52,6 +73,17 @@ function AssignmentList({ title, items, badge }) {
   );
 }
 
+function RiskPill({ level }) {
+  const map = {
+    healthy: "healthy",
+    watch: "watch",
+    at_risk: "at_risk",
+    not_enough_data: "neutral",
+  };
+
+  return <span className={`risk-pill ${map[level] || "neutral"}`}>{level.replaceAll("_", " ")}</span>;
+}
+
 function CourseCard({ course }) {
   return (
     <div className="course-card">
@@ -60,7 +92,7 @@ function CourseCard({ course }) {
           <div className="course-name">{course.course_name}</div>
           <div className="course-code">{course.course_code || "Current course"}</div>
         </div>
-        <span className={`risk-pill ${course.risk_level}`}>{course.risk_level.replace("_", " ")}</span>
+        <RiskPill level={course.risk_level} />
       </div>
 
       <div className="course-metrics">
@@ -84,14 +116,14 @@ function CourseCard({ course }) {
 
       <div className="progress-block">
         <div className="progress-label-row">
-          <span>Progress to pass ({course.passing_score})</span>
-          <span>{course.known_progress_percent}%</span>
+          <span>Progress to pass</span>
+          <span>{course.pass_progress_percent}%</span>
         </div>
         <div className="progress-bar">
           <div
             className="progress-fill"
             style={{
-              width: `${Math.min(100, (course.earned_points / course.passing_score) * 100)}%`,
+              width: `${Math.min(100, course.pass_progress_percent)}%`,
             }}
           />
         </div>
@@ -102,6 +134,8 @@ function CourseCard({ course }) {
         <span>Submitted: {course.submitted_pending_count}</span>
         <span>Open: {course.open_count}</span>
       </div>
+
+      <div className="risk-reason">{course.risk_reason}</div>
     </div>
   );
 }
@@ -115,8 +149,11 @@ export default function App() {
   const load = async (force = false) => {
     try {
       setError("");
-      if (force) setRefreshing(true);
-      else setLoading(true);
+      if (force) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
       const payload = force ? await refreshDashboard() : await getDashboard(false);
       setData(payload);
@@ -141,7 +178,7 @@ export default function App() {
       <header className="hero">
         <div>
           <h1>College Control</h1>
-          <p>Direct, clear, and always current.</p>
+          <p>Clear view of your courses, tasks, and progress.</p>
         </div>
 
         <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>
@@ -149,12 +186,7 @@ export default function App() {
         </button>
       </header>
 
-      {data?.sync ? (
-        <div className={`sync-banner ${data.sync.status}`}>
-          <strong>{data.sync.status === "healthy" ? "Sync healthy" : "Sync issue"}</strong>
-          <span>{data.sync.message}</span>
-        </div>
-      ) : null}
+      <SyncBanner sync={data?.sync} />
 
       {error ? <div className="error-banner">{error}</div> : null}
 
@@ -164,7 +196,9 @@ export default function App() {
         <StatCard label="Opens soon" value={data?.summary?.opens_soon ?? 0} tone="indigo" />
         <StatCard label="Projects" value={data?.summary?.projects ?? 0} tone="amber" />
         <StatCard label="Submitted" value={data?.summary?.submitted ?? 0} tone="green" />
-        <StatCard label="Courses at risk" value={data?.summary?.courses_at_risk ?? 0} tone="danger" />
+        <StatCard label="At risk" value={data?.summary?.courses_at_risk ?? 0} tone="danger" />
+        <StatCard label="Watch" value={data?.summary?.courses_watch ?? 0} tone="amber" />
+        <StatCard label="Too early" value={data?.summary?.courses_not_enough_data ?? 0} tone="neutral" />
       </section>
 
       <section className="panel">
@@ -179,12 +213,13 @@ export default function App() {
         </div>
       </section>
 
-      <AssignmentList title="Act now" items={data?.groups?.act_now} badge="urgent" />
+      <AssignmentList title="Act now" items={data?.groups?.act_now} />
       <AssignmentList title="This week" items={data?.groups?.this_week} />
       <AssignmentList title="Next week" items={data?.groups?.next_week} />
       <AssignmentList title="Third week" items={data?.groups?.third_week} />
       <AssignmentList title="Opens soon" items={data?.groups?.opens_soon} />
-      <AssignmentList title="Submitted" items={data?.groups?.submitted} badge="waiting for grading" />
+      <AssignmentList title="Submitted" items={data?.groups?.submitted} />
+      <AssignmentList title="No due date" items={data?.groups?.no_due_date} />
     </div>
   );
 }

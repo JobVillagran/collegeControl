@@ -30,9 +30,9 @@ class DashboardService:
 
             groups = self.comparison.build_groups(assignments)
 
-            assignments_by_course = {}
-            for a in assignments:
-                assignments_by_course.setdefault(a["course_id"], []).append(a)
+            assignments_by_course: dict[str, list[dict]] = {}
+            for assignment in assignments:
+                assignments_by_course.setdefault(assignment["course_id"], []).append(assignment)
 
             course_summaries = [
                 self.grade_analytics.analyze_course(course, assignments_by_course.get(course["course_id"], []))
@@ -44,7 +44,7 @@ class DashboardService:
                     "status": "healthy",
                     "source": "canvas_api",
                     "last_synced_at": datetime.now(timezone.utc).isoformat(),
-                    "message": "Live data loaded successfully."
+                    "message": "Live data loaded successfully.",
                 },
                 "summary": {
                     "actionable": len(groups["act_now"]) + len(groups["this_week"]) + len(groups["next_week"]) + len(groups["third_week"]) + len(groups["no_due_date"]),
@@ -53,6 +53,9 @@ class DashboardService:
                     "projects": len(groups["urgent_projects"]),
                     "submitted": len(groups["submitted"]),
                     "courses_at_risk": len([c for c in course_summaries if c["risk_level"] == "at_risk"]),
+                    "courses_watch": len([c for c in course_summaries if c["risk_level"] == "watch"]),
+                    "courses_not_enough_data": len([c for c in course_summaries if c["risk_level"] == "not_enough_data"]),
+                    "healthy_courses": len([c for c in course_summaries if c["risk_level"] == "healthy"]),
                 },
                 "groups": groups,
                 "courses": course_summaries,
