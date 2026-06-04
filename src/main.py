@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from config.constants import SUMMARY_TITLE
-from config.settings import CHANGES_FILE, SEND_EMAIL, UPCOMING_FILE
-from src.services.comparison_service import ComparisonService
-from src.services.config_validator import validate_required_config
-from src.services.email_service import EmailService
-from src.services.notification_decision_service import NotificationDecisionService
-from src.services.scraping_service import ScrapingService
-from src.services.snapshot_service import SnapshotService
-from src.services.summary_service import SummaryService
-from src.utils.file_utils import write_json
-from src.utils.logger import get_logger
+from backend.config.settings import CHANGES_FILE, SEND_EMAIL, UPCOMING_FILE
+from backend.src.services.comparison_service import ComparisonService
+from services.config_validator import validate_required_config
+from services.email_service import EmailService
+from services.notification_decision_service import NotificationDecisionService
+from backend.src.services.scraping_service import ScrapingService
+from services.snapshot_service import SnapshotService
+from services.summary_service import SummaryService
+from utils.file_utils import write_json
+from utils.logger import get_logger
 
 logger = get_logger(__name__)
 

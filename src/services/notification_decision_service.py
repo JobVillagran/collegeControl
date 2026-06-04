@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from config.settings import (
+from backend.config.settings import (
     APP_TIMEZONE,
     FORCE_SEND_EMAIL,
     NOTIFICATION_STATE_FILE,
     RUN_EVENT_NAME,
 )
-from src.utils.file_utils import read_json, write_json
+from utils.file_utils import read_json, write_json
 
 
 class NotificationDecisionService:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from config.settings import (
+from backend.config.settings import (
     CANVAS_BASE_URL,
     CANVAS_API_TOKEN,
     SEND_EMAIL,

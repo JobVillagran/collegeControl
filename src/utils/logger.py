@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from config.settings import APP_LOG_FILE
+from backend.config.settings import APP_LOG_FILE
 
 def get_logger(name: str) -> logging.Logger:
     logger = logging.getLogger(name)

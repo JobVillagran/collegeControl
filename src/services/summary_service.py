@@ -4,14 +4,14 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from jinja2 import Environment, FileSystemLoader
 
-from config.settings import (
+from backend.config.settings import (
     APP_TIMEZONE,
     SUMMARY_HTML_FILE,
     SUMMARY_PAYLOAD_FILE,
     SUMMARY_TXT_FILE,
     TEMPLATES_DIR,
 )
-from src.utils.file_utils import write_json, write_text
+from utils.file_utils import write_json, write_text
 
 
 class SummaryService:

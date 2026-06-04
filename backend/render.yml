@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: college-control-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api.app:app --host 0.0.0.0 --port $PORT
+    rootDir: backend
+    envVars:
+      - key: CANVAS_BASE_URL
+        sync: false
+      - key: CANVAS_API_TOKEN
+        sync: false
+      - key: APP_TIMEZONE
+        value: America/Guatemala
+      - key: FRONTEND_ORIGIN
+        sync: false

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from config.settings import (
+from backend.config.settings import (
     APP_TIMEZONE,
     CURRENT_SNAPSHOT_FILE,
     PREVIOUS_SNAPSHOT_FILE,
 )
-from src.models.snapshot import Snapshot
-from src.utils.datetime_utils import now_iso
-from src.utils.file_utils import read_json, write_json
+from models.snapshot import Snapshot
+from utils.datetime_utils import now_iso
+from utils.file_utils import read_json, write_json
 
 
 class SnapshotService:

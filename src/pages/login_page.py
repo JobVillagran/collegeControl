@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.pages.base_page import BasePage
+from pages.base_page import BasePage
 
 
 class LoginPage(BasePage):
