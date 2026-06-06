@@ -13,3 +13,4 @@ data/processed/upcoming.json
 data/processed/summary_payload.json
 .pytest_cache/
 .DS_Store
+node_modules/
