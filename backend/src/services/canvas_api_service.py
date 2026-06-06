@@ -45,6 +45,7 @@ class CanvasAPIService:
             params={
                 "enrollment_state": "active",
                 "state[]": ["available", "completed", "unpublished"],
+                "include[]": ["term", "total_scores"],
                 "per_page": 100,
             },
         )
@@ -57,6 +58,8 @@ class CanvasAPIService:
             if not course_id or not name:
                 continue
 
+            student_enrollment = self._extract_student_enrollment(item.get("enrollments") or [])
+
             courses.append(
                 {
                     "course_id": str(course_id),
@@ -66,6 +69,16 @@ class CanvasAPIService:
                     "workflow_state": item.get("workflow_state"),
                     "start_at": item.get("start_at"),
                     "end_at": item.get("end_at"),
+                    "term": item.get("term") or {},
+                    "current_score": self._safe_float(
+                        student_enrollment.get("computed_current_score")
+                    ),
+                    "final_score": self._safe_float(
+                        student_enrollment.get("computed_final_score")
+                    ),
+                    "current_grade": student_enrollment.get("computed_current_grade"),
+                    "final_grade": student_enrollment.get("computed_final_grade"),
+                    "has_grading_periods": item.get("has_grading_periods"),
                 }
             )
         return courses
@@ -92,14 +105,15 @@ class CanvasAPIService:
                     "assignment_id": str(item.get("id")) if item.get("id") else None,
                     "assignment_name": item.get("name") or "Untitled assignment",
                     "assignment_url": item.get("html_url"),
+                    "assignment_group_id": str(item.get("assignment_group_id")) if item.get("assignment_group_id") else None,
                     "due_date_iso": item.get("due_at"),
                     "unlock_at": item.get("unlock_at"),
                     "lock_at": item.get("lock_at"),
                     "published": bool(item.get("published", False)),
                     "locked_for_user": bool(item.get("locked_for_user", False)),
                     "workflow_state": item.get("workflow_state"),
-                    "score": submission.get("score"),
-                    "max_score": item.get("points_possible"),
+                    "score": self._safe_float(submission.get("score")),
+                    "max_score": self._safe_float(item.get("points_possible")),
                     "submitted_at": submission.get("submitted_at"),
                     "submission_workflow_state": submission.get("workflow_state"),
                     "missing": submission.get("missing"),
@@ -110,3 +124,41 @@ class CanvasAPIService:
             )
 
         return assignments
+
+    def get_assignment_groups_for_course(self, course_id: str) -> list[dict]:
+        data = self._get(
+            f"/api/v1/courses/{course_id}/assignment_groups",
+            params={
+                "per_page": 100,
+            },
+        )
+
+        groups: list[dict] = []
+        for item in data:
+            groups.append(
+                {
+                    "group_id": str(item.get("id")) if item.get("id") else None,
+                    "name": item.get("name") or "Unnamed group",
+                    "group_weight": self._safe_float(item.get("group_weight")) or 0.0,
+                    "rules": item.get("rules") or {},
+                }
+            )
+        return groups
+
+    def _extract_student_enrollment(self, enrollments: list[dict]) -> dict:
+        for enrollment in enrollments:
+            enrollment_type = (enrollment.get("type") or "").lower()
+            role = (enrollment.get("role") or "").lower()
+
+            if "student" in enrollment_type or "student" in role:
+                return enrollment
+
+        return enrollments[0] if enrollments else {}
+
+    def _safe_float(self, value):
+        try:
+            if value is None:
+                return None
+            return float(value)
+        except (TypeError, ValueError):
+            return None

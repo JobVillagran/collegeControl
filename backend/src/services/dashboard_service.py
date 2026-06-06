@@ -26,16 +26,19 @@ class DashboardService:
     def refresh_dashboard(self) -> dict:
         try:
             courses = self.scraping.get_courses()
-            assignments = self.scraping.get_assignments(courses)
 
-            groups = self.comparison.build_groups(assignments)
+            dashboard_assignments = self.scraping.get_dashboard_assignments(courses)
+            progress_assignments_by_course = self.scraping.get_course_progress_assignments(courses)
+            assignment_groups_by_course = self.scraping.get_assignment_groups(courses)
 
-            assignments_by_course: dict[str, list[dict]] = {}
-            for assignment in assignments:
-                assignments_by_course.setdefault(assignment["course_id"], []).append(assignment)
+            groups = self.comparison.build_groups(dashboard_assignments)
 
             course_summaries = [
-                self.grade_analytics.analyze_course(course, assignments_by_course.get(course["course_id"], []))
+                self.grade_analytics.analyze_course(
+                    course=course,
+                    assignments=progress_assignments_by_course.get(course["course_id"], []),
+                    assignment_groups=assignment_groups_by_course.get(course["course_id"], []),
+                )
                 for course in courses
             ]
 
