@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { getDashboard, refreshDashboard } from "./api";
+import {
+  clearAccessKey,
+  getDashboard,
+  getStoredAccessKey,
+  refreshDashboard,
+  storeAccessKey,
+} from "./api";
 
 function StatCard({ label, value, tone = "default" }) {
   return (
@@ -140,25 +146,70 @@ function CourseCard({ course }) {
   );
 }
 
+function AccessGate({ onUnlock, errorMessage }) {
+  const [accessKey, setAccessKey] = useState("");
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!accessKey.trim()) return;
+    onUnlock(accessKey.trim());
+  };
+
+  return (
+    <div className="gate-shell">
+      <div className="gate-card">
+        <div className="gate-title">College Control</div>
+        <div className="gate-subtitle">
+          Enter your private access key to open the dashboard.
+        </div>
+
+        <form onSubmit={submit} className="gate-form">
+          <input
+            type="password"
+            className="gate-input"
+            placeholder="Access key"
+            value={accessKey}
+            onChange={(e) => setAccessKey(e.target.value)}
+          />
+
+          <button type="submit" className="gate-button">
+            Unlock
+          </button>
+        </form>
+
+        {errorMessage ? <div className="gate-error">{errorMessage}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [isUnlocked, setIsUnlocked] = useState(Boolean(getStoredAccessKey()));
 
   const load = async (force = false) => {
     try {
       setError("");
-      if (force) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      if (force) setRefreshing(true);
+      else setLoading(true);
 
       const payload = force ? await refreshDashboard() : await getDashboard(false);
       setData(payload);
+      setAuthError("");
+      setIsUnlocked(true);
     } catch (err) {
-      setError(err.message || "Failed to load dashboard.");
+      if (String(err.message).includes("401")) {
+        clearAccessKey();
+        setIsUnlocked(false);
+        setAuthError("Invalid access key.");
+        setData(null);
+      } else {
+        setError(err.message || "Failed to load dashboard.");
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -166,10 +217,30 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!isUnlocked) return;
     load(false);
-  }, []);
+  }, [isUnlocked]);
 
-  if (loading) {
+  const unlock = async (key) => {
+    storeAccessKey(key);
+    setIsUnlocked(true);
+    setAuthError("");
+    await load(false);
+  };
+
+  const logout = () => {
+    clearAccessKey();
+    setData(null);
+    setError("");
+    setAuthError("");
+    setIsUnlocked(false);
+  };
+
+  if (!isUnlocked) {
+    return <AccessGate onUnlock={unlock} errorMessage={authError} />;
+  }
+
+  if (loading && !data) {
     return <div className="screen-state">Loading dashboard...</div>;
   }
 
@@ -181,9 +252,14 @@ export default function App() {
           <p>Clear view of your courses, tasks, and progress.</p>
         </div>
 
-        <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>
-          {refreshing ? "Refreshing..." : "Refresh now"}
-        </button>
+        <div className="hero-actions">
+          <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>
+            {refreshing ? "Refreshing..." : "Refresh now"}
+          </button>
+          <button className="logout-btn" onClick={logout}>
+            Lock
+          </button>
+        </div>
       </header>
 
       <SyncBanner sync={data?.sync} />
