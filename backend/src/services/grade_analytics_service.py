@@ -54,6 +54,7 @@ class GradeAnalyticsService:
         canvas_current_total_percent = self._resolve_current_total_percent(course, graded)
 
         impact = self._build_course_impact_over_100(
+            course=course,
             assignments=assignments,
             assignment_groups=assignment_groups,
             grading_mode=grading_mode,
@@ -145,29 +146,40 @@ class GradeAnalyticsService:
 
     def _build_course_impact_over_100(
         self,
+        course: dict,
         assignments: list[dict],
         assignment_groups: list[dict],
         grading_mode: str,
     ) -> dict:
         if grading_mode == "weighted":
-            return self._build_weighted_course_impact(assignments, assignment_groups)
+            return self._build_weighted_course_impact(
+                course=course,
+                assignments=assignments,
+                assignment_groups=assignment_groups,
+            )
 
         return self._build_unweighted_course_impact(assignments)
 
     def _build_weighted_course_impact(
         self,
+        course: dict,
         assignments: list[dict],
         assignment_groups: list[dict],
     ) -> dict:
-        assignments_by_group: dict[str, list[dict]] = {}
+        """
+        For weighted courses, Canvas current_score is the most reliable source of truth.
+        We do NOT reconstruct secured progress from raw assignment sums because that
+        breaks on attendance/percent-style items and other Canvas grading behaviors.
+        """
+        current_total = float(course.get("current_score") or 0.0)
 
+        assignments_by_group: dict[str, list[dict]] = {}
         for assignment in assignments:
             group_id = assignment.get("assignment_group_id")
             if not group_id:
                 continue
             assignments_by_group.setdefault(group_id, []).append(assignment)
 
-        secured = 0.0
         pending = 0.0
         missing = 0.0
         open_value = 0.0
@@ -196,19 +208,17 @@ class GradeAnalyticsService:
             for assignment in countable:
                 max_score = float(assignment["max_score"])
 
-                if assignment.get("is_graded") and assignment.get("score") is not None:
-                    secured += float(assignment["score"]) * factor
-                elif assignment.get("is_missing"):
+                if assignment.get("is_missing"):
                     missing += max_score * factor
                 elif assignment.get("is_submitted") and not assignment.get("is_graded"):
                     pending += max_score * factor
                 elif assignment.get("status") in {"open", "not_enabled_yet", "open_no_due_date"}:
                     open_value += max_score * factor
 
-        resolved = secured + missing
+        resolved = current_total + missing
 
         return {
-            "secured_over_100": round(secured, 2),
+            "secured_over_100": round(current_total, 2),
             "pending_over_100": round(pending, 2),
             "missing_over_100": round(missing, 2),
             "open_over_100": round(open_value, 2),

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,13 +20,15 @@ APP_TIMEZONE = os.getenv("APP_TIMEZONE", "America/Guatemala").strip()
 
 APP_ACCESS_KEY = os.getenv("APP_ACCESS_KEY", "").strip()
 
-FRONTEND_ORIGINS_RAW = os.getenv(
-    "FRONTEND_ORIGINS",
-    "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://jobvillagran.github.io",
+# Support both FRONTEND_ORIGINS and FRONTEND_ORIGIN
+FRONTEND_ORIGINS_RAW = (
+    os.getenv("FRONTEND_ORIGINS")
+    or os.getenv("FRONTEND_ORIGIN")
+    or "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://jobvillagran.github.io"
 ).strip()
 
 FRONTEND_ORIGINS = [
-    origin.strip()
+    origin.strip().rstrip("/")
     for origin in FRONTEND_ORIGINS_RAW.split(",")
     if origin.strip()
 ]
