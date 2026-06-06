@@ -11,6 +11,52 @@ import creatorPhoto from "./assets/job-villagran.png";
 import brandLogoColor from "./assets/athena-desk-color.png";
 import brandLogoWhite from "./assets/athena-desk-white.png";
 
+function formatStatusLabel(value) {
+  if (!value) return "Info";
+
+  const dictionary = {
+    not_enabled_yet: "Not enabled yet",
+    submitted: "Submitted",
+    missing: "Missing",
+    late: "Late",
+    unsubmitted: "Not submitted",
+    open: "Open",
+    closed: "Closed",
+    published: "Published",
+    healthy: "Healthy",
+    watch: "Watch",
+    at_risk: "At risk",
+    not_enough_data: "Not enough data",
+    no_due_date: "No due date",
+  };
+
+  if (dictionary[value]) {
+    return dictionary[value];
+  }
+
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getStatusClass(value) {
+  const normalized = (value || "").toLowerCase();
+
+  if (["submitted", "healthy", "open", "published"].includes(normalized)) {
+    return "submitted";
+  }
+
+  if (["missing", "late", "at_risk"].includes(normalized)) {
+    return "danger";
+  }
+
+  if (["not_enabled_yet", "watch", "not_enough_data", "no_due_date"].includes(normalized)) {
+    return "not_enabled_yet";
+  }
+
+  return "default";
+}
+
 function BrandLockup({ compact = false, theme = "light", showSubtitle = true }) {
   const logoSrc = theme === "dark" ? brandLogoWhite : brandLogoColor;
 
@@ -67,8 +113,8 @@ function AssignmentList({ title, items }) {
           <div className="assignment-card" key={`${item.assignment_id || item.assignment_name}-${index}`}>
             <div className="assignment-card-top">
               <div className="assignment-course">{item.course_name}</div>
-              <span className={`mini-tag ${item.status || "default"}`}>
-                {item.status || "info"}
+              <span className={`mini-tag ${getStatusClass(item.status)}`}>
+                {formatStatusLabel(item.status)}
               </span>
             </div>
 
@@ -122,7 +168,7 @@ function RiskPill({ level }) {
 
   return (
     <span className={`risk-pill ${map[level] || "neutral"}`}>
-      {level.replaceAll("_", " ")}
+      {formatStatusLabel(level)}
     </span>
   );
 }
@@ -370,7 +416,12 @@ export default function App() {
       <header className="hero">
         <div className="hero-main">
           <BrandLockup compact theme="light" showSubtitle={false} />
+          <div className="hero-copy">
+            <div className="hero-eyebrow">Private dashboard</div>
+            <p>Current term, live sync, clearer priorities.</p>
+          </div>
         </div>
+
         <div className="hero-actions">
           <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>
             {refreshing ? "Refreshing..." : "Refresh now"}
