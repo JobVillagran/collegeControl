@@ -1,0 +1,383 @@
+export const LANGUAGE_STORAGE_KEY = "athena_desk_language";
+
+export const LANGUAGES = {
+  en: {
+    short: "EN",
+    label: "English",
+    locale: "en-GB",
+  },
+  es: {
+    short: "ES",
+    label: "Español",
+    locale: "es-GT",
+  },
+};
+
+export const DEFAULT_LANGUAGE = "es";
+
+const DICTIONARY = {
+  en: {
+    "brand.subtitle": "Secure academic workspace",
+
+    "creator.label": "Created by",
+
+    "gate.title": "Secure academic workspace",
+    "gate.description":
+      "Enter your private access key to open your personal university dashboard, refresh tasks, and review course progress securely.",
+    "gate.point.currentTerm": "Current-term courses only",
+    "gate.point.canvasSync": "Canvas-backed live sync",
+    "gate.point.protected": "Protected refresh and dashboard access",
+    "gate.welcome": "Welcome back",
+    "gate.subtitle": "Enter your private access key to continue.",
+    "gate.accessKey": "Access key",
+    "gate.placeholder": "Enter access key",
+    "gate.validating": "Validating...",
+    "gate.unlock": "Unlock dashboard",
+
+    "language.switchLabel": "Language",
+    "language.english": "English",
+    "language.spanish": "Spanish",
+
+    "actions.refresh": "Refresh now",
+    "actions.refreshing": "Refreshing...",
+    "actions.lock": "Lock",
+    "actions.openCanvas": "Open in Canvas",
+
+    "screen.loading": "Loading dashboard...",
+
+    "error.savedKeyInvalid": "Your saved key is no longer valid. Please enter it again.",
+    "error.invalidKey": "Invalid access key.",
+    "error.invalidKeyRetry": "Invalid access key. Please try again.",
+    "error.dashboardLoad": "Failed to load dashboard.",
+
+    "sync.healthy": "Sync healthy",
+    "sync.issue": "Sync issue",
+    "sync.last": "Last sync",
+    "sync.message.loaded": "Live data loaded successfully.",
+    "sync.message.cached": "Cached data loaded.",
+    "sync.message.refreshing": "Refreshing Canvas data...",
+
+    "stats.actionable": "Actionable",
+    "stats.urgent": "Urgent",
+    "stats.opensSoon": "Opens soon",
+    "stats.projects": "Projects",
+    "stats.submitted": "Submitted",
+    "stats.atRisk": "At risk",
+    "stats.watch": "Watch",
+    "stats.incomplete": "Incomplete",
+
+    "groups.actNow": "Act now",
+    "groups.thisWeek": "This week",
+    "groups.nextWeek": "Next week",
+    "groups.thirdWeek": "Third week",
+    "groups.opensSoon": "Opens soon",
+    "groups.submitted": "Submitted",
+    "groups.noDueDate": "No due date",
+
+    "assignment.due": "Due",
+    "assignment.noDueDate": "No due date",
+    "assignment.submittedWaiting": "Submitted • waiting for grading",
+    "assignment.urgency.actNow": "Act now • {hours}h left",
+    "assignment.urgency.soon": "Soon • {hours}h left",
+    "assignment.urgency.upcoming": "Upcoming • {hours}h left",
+
+    "course.current": "Current course",
+    "course.progress": "Course progress",
+    "course.earnedPoints": "Earned points",
+    "course.realConfirmedPoints": "Real confirmed points",
+    "course.finalResult": "Final result",
+    "course.finalFound": "Final/Recovery grade found",
+    "course.needToPass": "Need to pass",
+    "course.passMark": "Pass mark",
+    "course.lostPoints": "Lost points",
+    "course.lostPointsHelper": "Missed + points lost in grades",
+    "course.available": "Available",
+    "course.availableHelper": "Open + pending + unpublished",
+    "course.pointAudit": "Point audit",
+    "course.published": "Published",
+    "course.pending": "Pending",
+    "course.review": "Review",
+    "course.unpublishedEst": "Unpublished est.",
+    "course.realPointsEarned": "Real points earned",
+    "course.toPass": "to pass",
+    "course.graded": "Graded",
+    "course.missed": "Missed",
+    "course.attendance": "Attendance",
+    "course.recoveryRule": "Recovery rule",
+    "course.applied": "Applied",
+    "course.notApplied": "Not applied",
+    "course.finishedPassed":
+      "Course finished. You passed with {earned} point(s). The passing mark is {passing}.",
+    "course.finishedFailed":
+      "Course finished. You did not reach the passing mark. Current confirmed total is {earned}/{total}; passing mark is {passing}.",
+    "course.expl.realPoints": "Real points: {earned} / {total}.",
+    "course.expl.published": "Effective published points: {published}.",
+    "course.expl.lost": "{points} point(s) are already lost.",
+    "course.expl.pending": "{points} point(s) are submitted but pending grade.",
+    "course.expl.open": "{points} point(s) are still open.",
+    "course.expl.review": "{points} point(s) need manual/detail review.",
+    "course.expl.unpublished": "{points} point(s) are estimated as not published yet.",
+    "course.expl.need": "Need {points} more point(s) to reach {passing}.",
+    "course.expl.required": "Required from remaining: {percent}%.",
+
+    "status.info": "Info",
+    "status.not_enabled_yet": "Not enabled yet",
+    "status.submitted": "Submitted",
+    "status.submitted_pending": "Pending review",
+    "status.graded": "Graded",
+    "status.missing": "Missed",
+    "status.late": "Late",
+    "status.unsubmitted": "Not submitted",
+    "status.open": "Open",
+    "status.open_no_due_date": "Open",
+    "status.closed": "Closed",
+    "status.published": "Published",
+    "status.healthy": "Healthy",
+    "status.watch": "Watch",
+    "status.at_risk": "At risk",
+    "status.critical": "Critical",
+    "status.not_enough_data": "Incomplete data",
+    "status.no_due_date": "No due date",
+    "status.not_applicable": "N/A",
+    "status.passed": "Passed",
+    "status.failed": "Failed",
+    "status.in_progress": "In progress",
+    "status.success": "Success",
+    "status.warning": "Warning",
+    "status.danger": "Danger",
+    "status.neutral": "Neutral",
+  },
+
+  es: {
+    "brand.subtitle": "Espacio académico seguro",
+
+    "creator.label": "Creado por",
+
+    "gate.title": "Espacio académico seguro",
+    "gate.description":
+      "Ingresa tu llave privada para abrir tu dashboard universitario, actualizar tareas y revisar tu progreso académico de forma segura.",
+    "gate.point.currentTerm": "Solo cursos del semestre actual",
+    "gate.point.canvasSync": "Sincronización en vivo con Canvas",
+    "gate.point.protected": "Acceso protegido al dashboard y actualización",
+    "gate.welcome": "Bienvenido de vuelta",
+    "gate.subtitle": "Ingresa tu llave privada para continuar.",
+    "gate.accessKey": "Llave de acceso",
+    "gate.placeholder": "Ingresa la llave de acceso",
+    "gate.validating": "Validando...",
+    "gate.unlock": "Abrir dashboard",
+
+    "language.switchLabel": "Idioma",
+    "language.english": "Inglés",
+    "language.spanish": "Español",
+
+    "actions.refresh": "Actualizar",
+    "actions.refreshing": "Actualizando...",
+    "actions.lock": "Bloquear",
+    "actions.openCanvas": "Abrir en Canvas",
+
+    "screen.loading": "Cargando dashboard...",
+
+    "error.savedKeyInvalid": "Tu llave guardada ya no es válida. Ingrésala nuevamente.",
+    "error.invalidKey": "Llave de acceso inválida.",
+    "error.invalidKeyRetry": "Llave de acceso inválida. Intenta nuevamente.",
+    "error.dashboardLoad": "No se pudo cargar el dashboard.",
+
+    "sync.healthy": "Sincronización correcta",
+    "sync.issue": "Problema de sincronización",
+    "sync.last": "Última sincronización",
+    "sync.message.loaded": "Datos cargados correctamente.",
+    "sync.message.cached": "Datos guardados cargados.",
+    "sync.message.refreshing": "Actualizando datos desde Canvas...",
+
+    "stats.actionable": "Accionables",
+    "stats.urgent": "Urgentes",
+    "stats.opensSoon": "Abren pronto",
+    "stats.projects": "Proyectos",
+    "stats.submitted": "Entregadas",
+    "stats.atRisk": "En riesgo",
+    "stats.watch": "Vigilar",
+    "stats.incomplete": "Incompleto",
+
+    "groups.actNow": "Accionar ahora",
+    "groups.thisWeek": "Esta semana",
+    "groups.nextWeek": "Próxima semana",
+    "groups.thirdWeek": "Tercera semana",
+    "groups.opensSoon": "Abren pronto",
+    "groups.submitted": "Entregadas",
+    "groups.noDueDate": "Sin fecha de entrega",
+
+    "assignment.due": "Entrega",
+    "assignment.noDueDate": "Sin fecha de entrega",
+    "assignment.submittedWaiting": "Entregada • esperando calificación",
+    "assignment.urgency.actNow": "Acciona ahora • faltan {hours}h",
+    "assignment.urgency.soon": "Pronto • faltan {hours}h",
+    "assignment.urgency.upcoming": "Próxima • faltan {hours}h",
+
+    "course.current": "Curso actual",
+    "course.progress": "Progreso de cursos",
+    "course.earnedPoints": "Puntos ganados",
+    "course.realConfirmedPoints": "Puntos reales confirmados",
+    "course.finalResult": "Resultado final",
+    "course.finalFound": "Nota final/recuperación encontrada",
+    "course.needToPass": "Faltan para ganar",
+    "course.passMark": "Mínimo para ganar",
+    "course.lostPoints": "Puntos perdidos",
+    "course.lostPointsHelper": "Faltantes + puntos perdidos en notas",
+    "course.available": "Disponibles",
+    "course.availableHelper": "Abiertos + pendientes + no publicados",
+    "course.pointAudit": "Auditoría de puntos",
+    "course.published": "Publicados",
+    "course.pending": "Pendientes",
+    "course.review": "Revisar",
+    "course.unpublishedEst": "No publicados est.",
+    "course.realPointsEarned": "Puntos reales ganados",
+    "course.toPass": "para ganar",
+    "course.graded": "Calificadas",
+    "course.missed": "Perdidas",
+    "course.attendance": "Asistencia",
+    "course.recoveryRule": "Regla de recuperación",
+    "course.applied": "Aplicada",
+    "course.notApplied": "No aplicada",
+    "course.finishedPassed":
+      "Curso finalizado. Ganaste con {earned} punto(s). El mínimo para ganar es {passing}.",
+    "course.finishedFailed":
+      "Curso finalizado. No llegaste al mínimo para ganar. Total confirmado actual: {earned}/{total}; mínimo requerido: {passing}.",
+    "course.expl.realPoints": "Puntos reales: {earned} / {total}.",
+    "course.expl.published": "Puntos publicados efectivos: {published}.",
+    "course.expl.lost": "{points} punto(s) ya están perdidos.",
+    "course.expl.pending": "{points} punto(s) fueron entregados pero siguen pendientes de nota.",
+    "course.expl.open": "{points} punto(s) siguen abiertos.",
+    "course.expl.review": "{points} punto(s) necesitan revisión manual/detalle.",
+    "course.expl.unpublished": "{points} punto(s) se estiman como no publicados todavía.",
+    "course.expl.need": "Necesitas {points} punto(s) más para llegar a {passing}.",
+    "course.expl.required": "Requerido sobre lo restante: {percent}%.",
+
+    "status.info": "Info",
+    "status.not_enabled_yet": "No habilitada todavía",
+    "status.submitted": "Entregada",
+    "status.submitted_pending": "Pendiente de revisión",
+    "status.graded": "Calificada",
+    "status.missing": "Faltante",
+    "status.late": "Tarde",
+    "status.unsubmitted": "No entregada",
+    "status.open": "Abierta",
+    "status.open_no_due_date": "Abierta",
+    "status.closed": "Cerrada",
+    "status.published": "Publicada",
+    "status.healthy": "Bien",
+    "status.watch": "Vigilar",
+    "status.at_risk": "En riesgo",
+    "status.critical": "Crítico",
+    "status.not_enough_data": "Datos incompletos",
+    "status.no_due_date": "Sin fecha",
+    "status.not_applicable": "N/A",
+    "status.passed": "Ganado",
+    "status.failed": "Perdido",
+    "status.in_progress": "En progreso",
+    "status.success": "Correcto",
+    "status.warning": "Advertencia",
+    "status.danger": "Peligro",
+    "status.neutral": "Neutral",
+  },
+};
+
+function readStorage(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+}
+
+function interpolate(template, params = {}) {
+  return String(template).replace(/\{(\w+)\}/g, (_, key) => {
+    if (params[key] === undefined || params[key] === null) return `{${key}}`;
+    return String(params[key]);
+  });
+}
+
+function humanizeKey(key) {
+  return String(key)
+    .split(".")
+    .pop()
+    .replaceAll("_", " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+export function normalizeLanguage(value) {
+  return Object.keys(LANGUAGES).includes(value) ? value : DEFAULT_LANGUAGE;
+}
+
+export function getInitialLanguage() {
+  const stored = readStorage(LANGUAGE_STORAGE_KEY);
+  if (stored) return normalizeLanguage(stored);
+
+  const browserLanguage = navigator.language?.toLowerCase() || "";
+  if (browserLanguage.startsWith("en")) return "en";
+
+  return DEFAULT_LANGUAGE;
+}
+
+export function saveLanguage(language) {
+  writeStorage(LANGUAGE_STORAGE_KEY, normalizeLanguage(language));
+}
+
+export function createTranslator(language) {
+  const currentLanguage = normalizeLanguage(language);
+
+  return function translate(key, params = {}, fallback = null) {
+    const currentDictionary = DICTIONARY[currentLanguage] || {};
+    const defaultDictionary = DICTIONARY[DEFAULT_LANGUAGE] || {};
+
+    const value =
+      currentDictionary[key] ??
+      defaultDictionary[key] ??
+      DICTIONARY.en?.[key] ??
+      fallback ??
+      humanizeKey(key);
+
+    return interpolate(value, params);
+  };
+}
+
+export function translateStatus(value, t) {
+  if (!value) return t("status.info");
+
+  const normalized = String(value).trim().toLowerCase();
+
+  return t(
+    `status.${normalized}`,
+    {},
+    normalized.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase())
+  );
+}
+
+export function translateSyncMessage(message, t) {
+  if (!message) return "";
+
+  const normalized = String(message).trim().toLowerCase();
+
+  const knownMessages = {
+    "live data loaded successfully.": "sync.message.loaded",
+    "live data loaded successfully": "sync.message.loaded",
+    "cached data loaded.": "sync.message.cached",
+    "cached data loaded": "sync.message.cached",
+    "refreshing canvas data...": "sync.message.refreshing",
+    "refreshing canvas data": "sync.message.refreshing",
+  };
+
+  const key = knownMessages[normalized];
+
+  if (key) return t(key);
+
+  return message;
+}
