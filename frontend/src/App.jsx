@@ -7,19 +7,23 @@ import {
   storeAccessKey,
   validateAccessKey,
 } from "./api";
+import {
+  LANGUAGES,
+  createTranslator,
+  getInitialLanguage,
+  saveLanguage,
+  translateStatus,
+  translateSyncMessage,
+} from "./i18n";
 import creatorPhoto from "./assets/job-villagran.png";
 import brandLogoColor from "./assets/athena-desk-color.png";
 import brandLogoWhite from "./assets/athena-desk-white.png";
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-  timeZone: "America/Guatemala",
-});
+const TIME_ZONE = "America/Guatemala";
+
+function getLocale(language) {
+  return LANGUAGES[language]?.locale || LANGUAGES.en.locale;
+}
 
 function formatNumber(value) {
   const numeric = Number(value ?? 0);
@@ -28,43 +32,23 @@ function formatNumber(value) {
   return numeric.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 }
 
-function formatDateTime(value) {
-  if (!value) return "No due date";
+function formatDateTime(value, language) {
+  if (!value) return null;
   try {
-    const result = DATE_TIME_FORMATTER.format(new Date(value));
-    return result.replace(" am", " AM").replace(" pm", " PM");
+    const result = new Intl.DateTimeFormat(getLocale(language), {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: TIME_ZONE,
+    }).format(new Date(value));
+
+    return result.replace(" am", " AM").replace(" pm", " PM").replace("a. m.", "AM").replace("p. m.", "PM");
   } catch {
     return value;
   }
-}
-
-function formatStatusLabel(value) {
-  if (!value) return "Info";
-  const dictionary = {
-    not_enabled_yet: "Not enabled yet",
-    submitted: "Submitted",
-    submitted_pending: "Pending review",
-    graded: "Graded",
-    missing: "Missed",
-    late: "Late",
-    unsubmitted: "Not submitted",
-    open: "Open",
-    open_no_due_date: "Open",
-    closed: "Closed",
-    published: "Published",
-    healthy: "Healthy",
-    watch: "Watch",
-    at_risk: "At risk",
-    critical: "Critical",
-    not_enough_data: "Incomplete data",
-    no_due_date: "No due date",
-    not_applicable: "N/A",
-    passed: "Passed",
-    failed: "Failed",
-    in_progress: "In progress",
-  };
-  if (dictionary[value]) return dictionary[value];
-  return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function getStatusClass(value) {
@@ -75,14 +59,37 @@ function getStatusClass(value) {
   return "neutral";
 }
 
-function BrandLockup({ compact = false, theme = "light", showSubtitle = true }) {
+function LanguageToggle({ language, onChange, compact = false }) {
+  return (
+    <div className={`language-toggle ${compact ? "compact" : ""}`} role="group" aria-label="Language selector">
+      <button
+        type="button"
+        className={language === "en" ? "active" : ""}
+        onClick={() => onChange("en")}
+        aria-pressed={language === "en"}
+      >
+        EN
+      </button>
+      <button
+        type="button"
+        className={language === "es" ? "active" : ""}
+        onClick={() => onChange("es")}
+        aria-pressed={language === "es"}
+      >
+        ES
+      </button>
+    </div>
+  );
+}
+
+function BrandLockup({ compact = false, theme = "light", showSubtitle = true, t }) {
   const logoSrc = theme === "dark" ? brandLogoWhite : brandLogoColor;
   return (
     <div className={`brand-lockup ${compact ? "compact" : ""} ${theme}`}>
       <img src={logoSrc} alt="Athena Desk logo" className="brand-logo" />
       <div className="brand-text-wrap">
         <div className="brand-name">Athena Desk</div>
-        {showSubtitle ? <div className="brand-subtitle">Secure academic workspace</div> : null}
+        {showSubtitle ? <div className="brand-subtitle">{t("brand.subtitle")}</div> : null}
       </div>
     </div>
   );
@@ -97,18 +104,18 @@ function StatCard({ label, value, tone = "default" }) {
   );
 }
 
-function SyncBanner({ sync }) {
+function SyncBanner({ sync, t, language }) {
   if (!sync) return null;
   return (
     <div className={`sync-banner ${sync.status || "healthy"}`}>
-      <div className="sync-banner-title">{sync.status === "healthy" ? "Sync healthy" : "Sync issue"}</div>
-      <div className="sync-banner-text">{sync.message}</div>
-      {sync.last_synced_at ? <small>Last sync: {formatDateTime(sync.last_synced_at)}</small> : null}
+      <div className="sync-banner-title">{sync.status === "healthy" ? t("sync.healthy") : t("sync.issue")}</div>
+      <div className="sync-banner-text">{translateSyncMessage(sync.message, t)}</div>
+      {sync.last_synced_at ? <small>{t("sync.last")}: {formatDateTime(sync.last_synced_at, language)}</small> : null}
     </div>
   );
 }
 
-function AssignmentList({ title, items }) {
+function AssignmentList({ title, items, t, language }) {
   if (!items || items.length === 0) return null;
   return (
     <section className="panel panel-soft">
@@ -123,22 +130,24 @@ function AssignmentList({ title, items }) {
               <div className="assignment-card-copy">
                 <div className="assignment-course">{item.course_name}</div>
                 <div className="assignment-title">{item.assignment_name}</div>
-                <div className="assignment-meta">Due: {item.due_date_iso ? formatDateTime(item.due_date_iso) : "No due date"}</div>
+                <div className="assignment-meta">
+                  {t("assignment.due")}: {item.due_date_iso ? formatDateTime(item.due_date_iso, language) : t("assignment.noDueDate")}
+                </div>
               </div>
-              <span className={`status-pill ${getStatusClass(item.status)}`}>{formatStatusLabel(item.status)}</span>
+              <span className={`status-pill ${getStatusClass(item.status)}`}>{translateStatus(item.status, t)}</span>
             </div>
             <div className="assignment-card-actions">
               {typeof item.hours_until_due === "number" ? (
                 <div className={`urgency-chip ${item.hours_until_due <= 24 ? "critical" : item.hours_until_due <= 48 ? "warning" : "normal"}`}>
                   {item.hours_until_due <= 24
-                    ? `Act now • ${formatNumber(item.hours_until_due)}h left`
+                    ? t("assignment.urgency.actNow", { hours: formatNumber(item.hours_until_due) })
                     : item.hours_until_due <= 48
-                    ? `Soon • ${formatNumber(item.hours_until_due)}h left`
-                    : `Upcoming • ${formatNumber(item.hours_until_due)}h left`}
+                    ? t("assignment.urgency.soon", { hours: formatNumber(item.hours_until_due) })
+                    : t("assignment.urgency.upcoming", { hours: formatNumber(item.hours_until_due) })}
                 </div>
               ) : null}
-              {item.submitted_at ? <div className="submitted-note">Submitted • waiting for grading</div> : null}
-              {item.assignment_url ? <a className="action-link" href={item.assignment_url} target="_blank" rel="noreferrer">Open in Canvas</a> : null}
+              {item.submitted_at ? <div className="submitted-note">{t("assignment.submittedWaiting")}</div> : null}
+              {item.assignment_url ? <a className="action-link" href={item.assignment_url} target="_blank" rel="noreferrer">{t("actions.openCanvas")}</a> : null}
             </div>
           </div>
         ))}
@@ -147,8 +156,8 @@ function AssignmentList({ title, items }) {
   );
 }
 
-function RiskPill({ level }) {
-  return <span className={`risk-pill ${getStatusClass(level)}`}>{formatStatusLabel(level)}</span>;
+function RiskPill({ level, t }) {
+  return <span className={`risk-pill ${getStatusClass(level)}`}>{translateStatus(level, t)}</span>;
 }
 
 function MetricTile({ label, value, helper = "", tone = "neutral" }) {
@@ -170,18 +179,18 @@ function MicroStat({ label, value, tone = "neutral" }) {
   );
 }
 
-function ScoreBar({ course }) {
+function ScoreBar({ course, t }) {
   const earnedPercent = Math.max(0, Math.min(100, Number(course.earned_effective_points ?? course.earned_points ?? 0)));
   const riskTone = getStatusClass(course.risk_level);
   return (
     <div className="score-block">
       <div className="score-header-row">
         <div>
-          <div className="score-block-label">Real points earned</div>
+          <div className="score-block-label">{t("course.realPointsEarned")}</div>
           <div className="score-block-value">{`${formatNumber(course.earned_effective_points ?? course.earned_points ?? 0)} / ${formatNumber(course.total_points ?? 100)}`}</div>
         </div>
         <div className="score-threshold">
-          Pass mark
+          {t("course.passMark")}
           <strong>{formatNumber(course.passing_score)} / {formatNumber(course.total_points ?? 100)}</strong>
         </div>
       </div>
@@ -193,18 +202,18 @@ function ScoreBar({ course }) {
       </div>
       <div className="score-bar-scale">
         <span>0</span>
-        <span className="score-pass-text">{formatNumber(course.passing_score)} to pass</span>
+        <span className="score-pass-text">{formatNumber(course.passing_score)} {t("course.toPass")}</span>
         <span>{formatNumber(course.total_points ?? 100)}</span>
       </div>
     </div>
   );
 }
 
-function AttendanceBadge({ attendance }) {
+function AttendanceBadge({ attendance, t }) {
   const level = attendance?.level || "not_applicable";
   return (
     <div className={`attendance-box ${getStatusClass(level)}`}>
-      <div className="attendance-label">Attendance</div>
+      <div className="attendance-label">{t("course.attendance")}</div>
       <div className="attendance-value">{attendance?.label || "N/A"}</div>
     </div>
   );
@@ -224,14 +233,14 @@ function ComponentsSummary({ components }) {
   );
 }
 
-function RecoverySummary({ recoveryEvents }) {
+function RecoverySummary({ recoveryEvents, t }) {
   if (!recoveryEvents || recoveryEvents.length === 0) return null;
   return (
     <div className="recovery-summary">
-      <div className="recovery-title">Recovery rule</div>
+      <div className="recovery-title">{t("course.recoveryRule")}</div>
       {recoveryEvents.map((event, index) => (
         <div className="recovery-row" key={`${event.component}-${index}`}>
-          <span>{event.applied ? "Applied" : "Not applied"}</span>
+          <span>{event.applied ? t("course.applied") : t("course.notApplied")}</span>
           <strong>{formatNumber(event.recovery_score)} / {formatNumber(event.recovery_points)}</strong>
         </div>
       ))}
@@ -239,76 +248,97 @@ function RecoverySummary({ recoveryEvents }) {
   );
 }
 
-function CourseCard({ course }) {
+function CourseCard({ course, t }) {
   const pendingReviewCount = Number(course.pending_grade_count ?? 0);
 
   const explanatoryText = useMemo(() => {
     const parts = [];
-    parts.push(`Real points: ${formatNumber(course.earned_effective_points ?? course.earned_points ?? 0)} / ${formatNumber(course.total_points ?? 100)}.`);
-    parts.push(`Effective published points: ${formatNumber(course.effective_published_points ?? course.published_points ?? 0)}.`);
+    parts.push(t("course.expl.realPoints", {
+      earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
+      total: formatNumber(course.total_points ?? 100),
+    }));
+    parts.push(t("course.expl.published", {
+      published: formatNumber(course.effective_published_points ?? course.published_points ?? 0),
+    }));
 
-    if (Number(course.lost_points ?? 0) > 0) parts.push(`${formatNumber(course.lost_points)} point(s) are already lost.`);
-    if (Number(course.pending_points ?? 0) > 0) parts.push(`${formatNumber(course.pending_points)} point(s) are submitted but pending grade.`);
-    if (Number(course.open_points ?? 0) > 0) parts.push(`${formatNumber(course.open_points)} point(s) are still open.`);
-    if (Number(course.hidden_or_review_points ?? 0) > 0) parts.push(`${formatNumber(course.hidden_or_review_points)} point(s) need manual/detail review.`);
-    if (Number(course.remaining_unpublished_points ?? 0) > 0) parts.push(`${formatNumber(course.remaining_unpublished_points)} point(s) are estimated as not published yet.`);
-    if (Number(course.remaining_to_pass ?? 0) > 0) parts.push(`Need ${formatNumber(course.remaining_to_pass)} more point(s) to reach ${formatNumber(course.passing_score)}.`);
+    if (Number(course.lost_points ?? 0) > 0) parts.push(t("course.expl.lost", { points: formatNumber(course.lost_points) }));
+    if (Number(course.pending_points ?? 0) > 0) parts.push(t("course.expl.pending", { points: formatNumber(course.pending_points) }));
+    if (Number(course.open_points ?? 0) > 0) parts.push(t("course.expl.open", { points: formatNumber(course.open_points) }));
+    if (Number(course.hidden_or_review_points ?? 0) > 0) parts.push(t("course.expl.review", { points: formatNumber(course.hidden_or_review_points) }));
+    if (Number(course.remaining_unpublished_points ?? 0) > 0) parts.push(t("course.expl.unpublished", { points: formatNumber(course.remaining_unpublished_points) }));
+    if (Number(course.remaining_to_pass ?? 0) > 0) parts.push(t("course.expl.need", {
+      points: formatNumber(course.remaining_to_pass),
+      passing: formatNumber(course.passing_score),
+    }));
     if (course.required_percent_of_remaining !== null && course.required_percent_of_remaining !== undefined) {
-      parts.push(`Required from remaining: ${formatNumber(course.required_percent_of_remaining)}%.`);
+      parts.push(t("course.expl.required", { percent: formatNumber(course.required_percent_of_remaining) }));
     }
     return parts.join(" ");
-  }, [course]);
+  }, [course, t]);
+
+  const resultText = course.course_result === "passed"
+    ? t("course.finishedPassed", {
+        earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
+        passing: formatNumber(course.passing_score),
+      })
+    : course.course_result === "failed"
+    ? t("course.finishedFailed", {
+        earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
+        total: formatNumber(course.total_points ?? 100),
+        passing: formatNumber(course.passing_score),
+      })
+    : explanatoryText;
 
   return (
     <div className="course-card">
       <div className="course-top">
         <div className="course-title-wrap">
           <div className="course-name">{course.course_name}</div>
-          <div className="course-code">{course.course_code || "Current course"}</div>
+          <div className="course-code">{course.course_code || t("course.current")}</div>
         </div>
-        <RiskPill level={course.risk_level} />
+        <RiskPill level={course.risk_level} t={t} />
       </div>
 
       <div className="course-metrics">
-        <MetricTile label="Earned points" value={`${formatNumber(course.earned_effective_points ?? course.earned_points)} / ${formatNumber(course.total_points)}`} helper="Real confirmed points" tone="neutral" />
+        <MetricTile label={t("course.earnedPoints")} value={`${formatNumber(course.earned_effective_points ?? course.earned_points)} / ${formatNumber(course.total_points)}`} helper={t("course.realConfirmedPoints")} tone="neutral" />
         {course.course_finished ? (
-          <MetricTile label="Final result" value={formatStatusLabel(course.course_result)} helper="Final/Recovery grade found" tone={course.course_result === "passed" ? "success" : "danger"} />
+          <MetricTile label={t("course.finalResult")} value={translateStatus(course.course_result, t)} helper={t("course.finalFound")} tone={course.course_result === "passed" ? "success" : "danger"} />
         ) : (
-          <MetricTile label="Need to pass" value={formatNumber(course.remaining_to_pass)} helper={`Pass mark: ${formatNumber(course.passing_score)}`} tone={Number(course.remaining_to_pass ?? 0) > 0 ? "warning" : "success"} />
+          <MetricTile label={t("course.needToPass")} value={formatNumber(course.remaining_to_pass)} helper={`${t("course.passMark")}: ${formatNumber(course.passing_score)}`} tone={Number(course.remaining_to_pass ?? 0) > 0 ? "warning" : "success"} />
         )}
-        <MetricTile label="Lost points" value={formatNumber(course.lost_points)} helper="Missed + points lost in grades" tone={Number(course.lost_points ?? 0) > 0 ? "danger" : "success"} />
-        <MetricTile label="Available" value={formatNumber(course.remaining_available_points)} helper="Open + pending + unpublished" tone="success" />
+        <MetricTile label={t("course.lostPoints")} value={formatNumber(course.lost_points)} helper={t("course.lostPointsHelper")} tone={Number(course.lost_points ?? 0) > 0 ? "danger" : "success"} />
+        <MetricTile label={t("course.available")} value={formatNumber(course.remaining_available_points)} helper={t("course.availableHelper")} tone="success" />
       </div>
 
       <div className="missing-strip">
-        <div className="missing-strip-title">Point audit</div>
+        <div className="missing-strip-title">{t("course.pointAudit")}</div>
         <div className="missing-strip-values">
-          <span>Published: {formatNumber(course.effective_published_points ?? course.published_points)}</span>
-          <span>Pending: {formatNumber(course.pending_points)}</span>
-          <span>Review: {formatNumber(course.hidden_or_review_points)}</span>
-          <span>Unpublished est.: {formatNumber(course.remaining_unpublished_points)}</span>
+          <span>{t("course.published")}: {formatNumber(course.effective_published_points ?? course.published_points)}</span>
+          <span>{t("course.pending")}: {formatNumber(course.pending_points)}</span>
+          <span>{t("course.review")}: {formatNumber(course.hidden_or_review_points)}</span>
+          <span>{t("course.unpublishedEst")}: {formatNumber(course.remaining_unpublished_points)}</span>
         </div>
       </div>
 
-      <ScoreBar course={course} />
+      <ScoreBar course={course} t={t} />
 
       <div className="course-status-row">
-        <MicroStat label="Graded" value={formatNumber(course.graded_count)} />
-        <MicroStat label="Pending" value={formatNumber(pendingReviewCount)} tone="warning" />
-        <MicroStat label="Missed" value={formatNumber(course.missing_count)} tone="danger" />
-        <AttendanceBadge attendance={course.attendance} />
+        <MicroStat label={t("course.graded")} value={formatNumber(course.graded_count)} />
+        <MicroStat label={t("course.pending")} value={formatNumber(pendingReviewCount)} tone="warning" />
+        <MicroStat label={t("course.missed")} value={formatNumber(course.missing_count)} tone="danger" />
+        <AttendanceBadge attendance={course.attendance} t={t} />
       </div>
 
       <ComponentsSummary components={course.components} />
-      <RecoverySummary recoveryEvents={course.recovery_events} />
+      <RecoverySummary recoveryEvents={course.recovery_events} t={t} />
 
-      <div className="risk-reason">{course.risk_reason || explanatoryText}</div>
+      <div className="risk-reason">{course.course_finished ? resultText : explanatoryText}</div>
       <div className="risk-reason secondary">{explanatoryText}</div>
     </div>
   );
 }
 
-function AccessGate({ onUnlock, errorMessage, loading }) {
+function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, t }) {
   const [accessKey, setAccessKey] = useState("");
   const submit = async (event) => {
     event.preventDefault();
@@ -319,30 +349,33 @@ function AccessGate({ onUnlock, errorMessage, loading }) {
     <div className="gate-shell">
       <div className="gate-layout">
         <div className="gate-brand-panel">
-          <BrandLockup theme="dark" />
-          <h1>Secure academic workspace</h1>
-          <p>Enter your private access key to open your personal university dashboard, refresh tasks, and review course progress securely.</p>
+          <div className="gate-language-position">
+            <LanguageToggle language={language} onChange={setLanguage} compact />
+          </div>
+          <BrandLockup theme="dark" t={t} />
+          <h1>{t("gate.title")}</h1>
+          <p>{t("gate.description")}</p>
           <div className="gate-brand-points">
-            <div>Current-term courses only</div>
-            <div>Canvas-backed live sync</div>
-            <div>Protected refresh and dashboard access</div>
+            <div>{t("gate.point.currentTerm")}</div>
+            <div>{t("gate.point.canvasSync")}</div>
+            <div>{t("gate.point.protected")}</div>
           </div>
         </div>
         <div className="gate-card">
           <div className="creator-block">
             <img src={creatorPhoto} alt="Job Villagran" className="creator-avatar" />
             <div className="creator-meta">
-              <span className="creator-label">Created by</span>
+              <span className="creator-label">{t("creator.label")}</span>
               <a href="https://www.linkedin.com/in/jobvillagran/" target="_blank" rel="noreferrer" className="creator-link">Job Villagran</a>
             </div>
           </div>
-          <div className="gate-title">Welcome back</div>
-          <div className="gate-subtitle">Enter your private access key to continue.</div>
+          <div className="gate-title">{t("gate.welcome")}</div>
+          <div className="gate-subtitle">{t("gate.subtitle")}</div>
           <form onSubmit={submit} className="gate-form">
-            <label className="gate-label" htmlFor="accessKey">Access key</label>
-            <input id="accessKey" type="password" className="gate-input" placeholder="Enter access key" value={accessKey} onChange={(e) => setAccessKey(e.target.value)} autoComplete="off" />
+            <label className="gate-label" htmlFor="accessKey">{t("gate.accessKey")}</label>
+            <input id="accessKey" type="password" className="gate-input" placeholder={t("gate.placeholder")} value={accessKey} onChange={(e) => setAccessKey(e.target.value)} autoComplete="off" />
             {errorMessage ? <div className="gate-error">{errorMessage}</div> : null}
-            <button type="submit" className="gate-button" disabled={loading}>{loading ? "Validating..." : "Unlock dashboard"}</button>
+            <button type="submit" className="gate-button" disabled={loading}>{loading ? t("gate.validating") : t("gate.unlock")}</button>
           </form>
         </div>
       </div>
@@ -351,12 +384,23 @@ function AccessGate({ onUnlock, errorMessage, loading }) {
 }
 
 export default function App() {
+  const [language, setLanguageState] = useState(getInitialLanguage);
+  const t = useMemo(() => createTranslator(language), [language]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
+
+  const setLanguage = (nextLanguage) => {
+    setLanguageState(nextLanguage);
+    saveLanguage(nextLanguage);
+  };
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   useEffect(() => {
     const existingKey = getStoredAccessKey();
@@ -373,13 +417,13 @@ export default function App() {
         clearAccessKey();
         setIsUnlocked(false);
         setData(null);
-        setAuthError("Your saved key is no longer valid. Please enter it again.");
+        setAuthError(t("error.savedKeyInvalid"));
       } finally {
         setLoading(false);
       }
     };
     bootstrap();
-  }, []);
+  }, [t]);
 
   const load = async (force = false) => {
     try {
@@ -393,9 +437,9 @@ export default function App() {
         clearAccessKey();
         setIsUnlocked(false);
         setData(null);
-        setAuthError("Invalid access key.");
+        setAuthError(t("error.invalidKey"));
       } else {
-        setError(err.message || "Failed to load dashboard.");
+        setError(err.message || t("error.dashboardLoad"));
       }
     } finally {
       setLoading(false);
@@ -416,7 +460,7 @@ export default function App() {
       clearAccessKey();
       setIsUnlocked(false);
       setData(null);
-      setAuthError("Invalid access key. Please try again.");
+      setAuthError(t("error.invalidKeyRetry"));
     } finally {
       setLoading(false);
     }
@@ -430,48 +474,52 @@ export default function App() {
     setIsUnlocked(false);
   };
 
-  if (!isUnlocked) return <AccessGate onUnlock={unlock} errorMessage={authError} loading={loading} />;
-  if (loading && !data) return <div className="screen-state">Loading dashboard...</div>;
+  if (!isUnlocked) {
+    return <AccessGate onUnlock={unlock} errorMessage={authError} loading={loading} language={language} setLanguage={setLanguage} t={t} />;
+  }
+
+  if (loading && !data) return <div className="screen-state">{t("screen.loading")}</div>;
 
   return (
     <div className="app-shell">
       <header className="hero">
-        <div className="hero-main"><BrandLockup compact theme="light" showSubtitle={false} /></div>
+        <div className="hero-main"><BrandLockup compact theme="light" showSubtitle={false} t={t} /></div>
         <div className="hero-actions">
-          <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>{refreshing ? "Refreshing..." : "Refresh now"}</button>
-          <button className="logout-btn" onClick={logout}>Lock</button>
+          <LanguageToggle language={language} onChange={setLanguage} />
+          <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>{refreshing ? t("actions.refreshing") : t("actions.refresh")}</button>
+          <button className="logout-btn" onClick={logout}>{t("actions.lock")}</button>
         </div>
       </header>
 
-      <SyncBanner sync={data?.sync} />
+      <SyncBanner sync={data?.sync} t={t} language={language} />
       {error ? <div className="error-banner">{error}</div> : null}
 
       <section className="stats-grid">
-        <StatCard label="Actionable" value={data?.summary?.actionable ?? 0} />
-        <StatCard label="Urgent" value={data?.summary?.urgent ?? 0} tone="danger" />
-        <StatCard label="Opens soon" value={data?.summary?.opens_soon ?? 0} tone="indigo" />
-        <StatCard label="Projects" value={data?.summary?.projects ?? 0} tone="amber" />
-        <StatCard label="Submitted" value={data?.summary?.submitted ?? 0} tone="green" />
-        <StatCard label="At risk" value={data?.summary?.courses_at_risk ?? 0} tone="danger" />
-        <StatCard label="Watch" value={data?.summary?.courses_watch ?? 0} tone="amber" />
-        <StatCard label="Incomplete" value={data?.summary?.courses_not_enough_data ?? 0} tone="neutral" />
+        <StatCard label={t("stats.actionable")} value={data?.summary?.actionable ?? 0} />
+        <StatCard label={t("stats.urgent")} value={data?.summary?.urgent ?? 0} tone="danger" />
+        <StatCard label={t("stats.opensSoon")} value={data?.summary?.opens_soon ?? 0} tone="indigo" />
+        <StatCard label={t("stats.projects")} value={data?.summary?.projects ?? 0} tone="amber" />
+        <StatCard label={t("stats.submitted")} value={data?.summary?.submitted ?? 0} tone="green" />
+        <StatCard label={t("stats.atRisk")} value={data?.summary?.courses_at_risk ?? 0} tone="danger" />
+        <StatCard label={t("stats.watch")} value={data?.summary?.courses_watch ?? 0} tone="amber" />
+        <StatCard label={t("stats.incomplete")} value={data?.summary?.courses_not_enough_data ?? 0} tone="neutral" />
       </section>
 
-      <AssignmentList title="Act now" items={data?.groups?.act_now} />
-      <AssignmentList title="This week" items={data?.groups?.this_week} />
-      <AssignmentList title="Next week" items={data?.groups?.next_week} />
-      <AssignmentList title="Third week" items={data?.groups?.third_week} />
-      <AssignmentList title="Opens soon" items={data?.groups?.opens_soon} />
-      <AssignmentList title="Submitted" items={data?.groups?.submitted} />
-      <AssignmentList title="No due date" items={data?.groups?.no_due_date} />
+      <AssignmentList title={t("groups.actNow")} items={data?.groups?.act_now} t={t} language={language} />
+      <AssignmentList title={t("groups.thisWeek")} items={data?.groups?.this_week} t={t} language={language} />
+      <AssignmentList title={t("groups.nextWeek")} items={data?.groups?.next_week} t={t} language={language} />
+      <AssignmentList title={t("groups.thirdWeek")} items={data?.groups?.third_week} t={t} language={language} />
+      <AssignmentList title={t("groups.opensSoon")} items={data?.groups?.opens_soon} t={t} language={language} />
+      <AssignmentList title={t("groups.submitted")} items={data?.groups?.submitted} t={t} language={language} />
+      <AssignmentList title={t("groups.noDueDate")} items={data?.groups?.no_due_date} t={t} language={language} />
 
       <section className="panel panel-strong">
         <div className="panel-header">
-          <h2>Course progress</h2>
+          <h2>{t("course.progress")}</h2>
           <span className="panel-count">{data?.courses?.length ?? 0}</span>
         </div>
         <div className="course-grid">
-          {data?.courses?.map((course) => <CourseCard key={course.course_id} course={course} />)}
+          {data?.courses?.map((course) => <CourseCard key={course.course_id} course={course} t={t} />)}
         </div>
       </section>
     </div>
