@@ -303,6 +303,7 @@ body:has(.refresh-overlay) {
   gap: 20px;
   align-items: flex-start;
   margin-bottom: 22px;
+  margin-top: 50px;
 }
 
 .page-intro h1 {
