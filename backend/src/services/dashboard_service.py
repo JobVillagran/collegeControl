@@ -26,17 +26,19 @@ class DashboardService:
     def refresh_dashboard(self) -> dict:
         try:
             courses = self.scraping.get_courses()
-
-            dashboard_assignments = self.scraping.get_dashboard_assignments(courses)
-            progress_assignments_by_course = self.scraping.get_course_progress_assignments(courses)
+            assignments_by_course = self.scraping.get_assignments_by_course(courses)
             assignment_groups_by_course = self.scraping.get_assignment_groups(courses)
+
+            dashboard_assignments = []
+            for assignments in assignments_by_course.values():
+                dashboard_assignments.extend(self.scraping._filter_dashboard_assignments(assignments))
 
             groups = self.comparison.build_groups(dashboard_assignments)
 
             course_summaries = [
                 self.grade_analytics.analyze_course(
                     course=course,
-                    assignments=progress_assignments_by_course.get(course["course_id"], []),
+                    assignments=assignments_by_course.get(course["course_id"], []),
                     assignment_groups=assignment_groups_by_course.get(course["course_id"], []),
                 )
                 for course in courses
@@ -55,10 +57,15 @@ class DashboardService:
                     "opens_soon": len(groups["opens_soon"]),
                     "projects": len(groups["urgent_projects"]),
                     "submitted": len(groups["submitted"]),
-                    "courses_at_risk": len([c for c in course_summaries if c["risk_level"] == "at_risk"]),
+                    "courses_at_risk": len([c for c in course_summaries if c["risk_level"] in {"at_risk", "critical"}]),
                     "courses_watch": len([c for c in course_summaries if c["risk_level"] == "watch"]),
                     "courses_not_enough_data": len([c for c in course_summaries if c["risk_level"] == "not_enough_data"]),
                     "healthy_courses": len([c for c in course_summaries if c["risk_level"] == "healthy"]),
+                    "courses_finished": len([c for c in course_summaries if c.get("course_finished")]),
+                    "courses_passed": len([c for c in course_summaries if c.get("course_result") == "passed"]),
+                    "courses_failed": len([c for c in course_summaries if c.get("course_result") == "failed"]),
+                    "hidden_or_review": sum(int(c.get("hidden_or_review_count") or 0) for c in course_summaries),
+                    "attendance_watch": len([c for c in course_summaries if (c.get("attendance") or {}).get("level") in {"watch", "at_risk", "critical"}]),
                 },
                 "groups": groups,
                 "courses": course_summaries,

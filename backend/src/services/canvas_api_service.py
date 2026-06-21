@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import html as html_lib
+import json
+import re
 from urllib.parse import urljoin
 
 import requests
@@ -11,6 +14,7 @@ class CanvasAPIService:
     def __init__(self) -> None:
         self.base_url = CANVAS_BASE_URL.rstrip("/")
         self.session = requests.Session()
+        self._current_user_id_cache: str | None = None
         self.session.headers.update(
             {
                 "Authorization": f"Bearer {CANVAS_API_TOKEN}",
@@ -24,23 +28,146 @@ class CanvasAPIService:
     def _get(self, path: str, params: dict | None = None) -> list | dict:
         url = self._build_url(path)
         response = self.session.get(url, params=params, timeout=30)
+        self._raise_canvas_errors(response, url)
+        return response.json()
 
+    def _get_text(self, path: str, params: dict | None = None) -> str:
+        url = self._build_url(path)
+        headers = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
+        response = self.session.get(url, params=params, headers=headers, timeout=30)
+        self._raise_canvas_errors(response, url)
+        return response.text
+
+    def _get_paginated(self, path: str, params: dict | None = None) -> list[dict]:
+        url = self._build_url(path)
+        next_url: str | None = url
+        next_params = dict(params or {})
+        results: list[dict] = []
+
+        while next_url:
+            response = self.session.get(next_url, params=next_params, timeout=30)
+            self._raise_canvas_errors(response, next_url)
+            data = response.json()
+
+            if isinstance(data, list):
+                results.extend(data)
+            elif isinstance(data, dict):
+                results.append(data)
+
+            next_url = response.links.get("next", {}).get("url")
+            next_params = None
+
+        return results
+
+    def _raise_canvas_errors(self, response: requests.Response, url: str) -> None:
         if response.status_code == 401:
-            raise RuntimeError("Canvas API returned 401 Unauthorized. Token invalid or expired.")
+            raise RuntimeError("Canvas returned 401 Unauthorized. Token/session invalid or expired.")
 
         if response.status_code == 404:
-            raise RuntimeError(
-                f"Canvas API returned 404 for {url}. Check CANVAS_BASE_URL."
-            )
+            raise RuntimeError(f"Canvas returned 404 for {url}. Check CANVAS_BASE_URL.")
 
         response.raise_for_status()
-        return response.json()
+
+
+    def get_current_user_id(self) -> str | None:
+        if self._current_user_id_cache:
+            return self._current_user_id_cache
+        try:
+            user = self.validate_connection()
+            user_id = user.get("id") if isinstance(user, dict) else None
+            if user_id is not None:
+                self._current_user_id_cache = str(user_id)
+            return self._current_user_id_cache
+        except Exception:
+            return None
+
+    def get_assignment_submission_detail_grade(self, course_id: str, assignment_id: str) -> dict:
+        """
+        Some Canvas/External Tool quizzes are muted/unposted in the grades table and
+        in the Assignments API, but the student's submission detail page renders the
+        real result, e.g. "Resultados ... 5 De 10 puntos".
+
+        This method fetches the submission detail page and extracts that visible
+        score pair. It is intentionally conservative: it only returns a grade when
+        it can read both score and max_score from the detail page.
+        """
+        candidates: list[str] = []
+        current_user_id = self.get_current_user_id()
+        if current_user_id:
+            candidates.append(f"/courses/{course_id}/assignments/{assignment_id}/submissions/{current_user_id}")
+        candidates.append(f"/courses/{course_id}/assignments/{assignment_id}")
+
+        errors: list[str] = []
+        for path in candidates:
+            try:
+                html = self._get_text(path)
+                extracted = self._extract_submission_detail_score(html)
+                if extracted:
+                    return {
+                        **extracted,
+                        "assignment_id": str(assignment_id),
+                        "source": "submission_detail_html",
+                        "detail_url": self._build_url(path),
+                    }
+            except Exception as exc:
+                errors.append(f"{path}: {exc}")
+
+        return {
+            "assignment_id": str(assignment_id),
+            "source": "submission_detail_html",
+            "score": None,
+            "max_score": None,
+            "error": " | ".join(errors) if errors else "No detail score found.",
+        }
+
+    def _extract_submission_detail_score(self, html: str) -> dict | None:
+        if not html:
+            return None
+
+        decoded = html_lib.unescape(html)
+        decoded = decoded.replace("\\u003c", "<").replace("\\u003e", ">")
+        decoded = decoded.replace("\\u0026nbsp;", " ").replace("&nbsp;", " ")
+        text = re.sub(r"<[^>]+>", " ", decoded)
+        text = re.sub(r"\s+", " ", text).strip()
+
+        result_index = text.lower().find("resultados")
+        search_windows = []
+        if result_index >= 0:
+            search_windows.append(text[result_index : result_index + 1200])
+        search_windows.append(text[:5000])
+        search_windows.append(decoded[:10000])
+
+        patterns = [
+            r"(?i)resultados.{0,900}?(\d+(?:[\.,]\d+)?)\s*(?:de|/)\s*(\d+(?:[\.,]\d+)?)\s*puntos?",
+            r"(?i)(\d+(?:[\.,]\d+)?)\s*(?:de|/)\s*(\d+(?:[\.,]\d+)?)\s*puntos?",
+            r"(?i)score[^0-9]{0,40}(\d+(?:[\.,]\d+)?)[^0-9]{0,40}(?:out of|de|/)\s*(\d+(?:[\.,]\d+)?)",
+        ]
+
+        for window in search_windows:
+            for pattern in patterns:
+                match = re.search(pattern, window)
+                if not match:
+                    continue
+                score = self._safe_float(str(match.group(1)).replace(",", "."))
+                max_score = self._safe_float(str(match.group(2)).replace(",", "."))
+                if score is None or max_score is None or max_score <= 0:
+                    continue
+                if score < 0 or score > max_score * 1.5:
+                    continue
+                return {
+                    "score": score,
+                    "entered_score": score,
+                    "max_score": max_score,
+                    "raw_match": match.group(0)[:180],
+                }
+
+        return None
 
     def validate_connection(self) -> dict:
         return self._get("/api/v1/users/self")
 
     def get_courses(self) -> list[dict]:
-        data = self._get(
+        data = self._get_paginated(
             "/api/v1/courses",
             params={
                 "enrollment_state": "active",
@@ -70,12 +197,8 @@ class CanvasAPIService:
                     "start_at": item.get("start_at"),
                     "end_at": item.get("end_at"),
                     "term": item.get("term") or {},
-                    "current_score": self._safe_float(
-                        student_enrollment.get("computed_current_score")
-                    ),
-                    "final_score": self._safe_float(
-                        student_enrollment.get("computed_final_score")
-                    ),
+                    "current_score": self._safe_float(student_enrollment.get("computed_current_score")),
+                    "final_score": self._safe_float(student_enrollment.get("computed_final_score")),
                     "current_grade": student_enrollment.get("computed_current_grade"),
                     "final_grade": student_enrollment.get("computed_final_grade"),
                     "has_grading_periods": item.get("has_grading_periods"),
@@ -84,7 +207,7 @@ class CanvasAPIService:
         return courses
 
     def get_assignments_for_course(self, course_id: str, course_name: str, course_url: str) -> list[dict]:
-        data = self._get(
+        data = self._get_paginated(
             f"/api/v1/courses/{course_id}/assignments",
             params={
                 "include[]": ["submission"],
@@ -93,44 +216,78 @@ class CanvasAPIService:
             },
         )
 
-        assignments: list[dict] = []
-        for item in data:
-            submission = item.get("submission") or {}
+        return [self._normalize_assignment_payload(course_id, course_name, course_url, item) for item in data]
 
-            assignments.append(
-                {
-                    "course_id": str(course_id),
-                    "course_name": course_name,
-                    "course_url": course_url,
-                    "assignment_id": str(item.get("id")) if item.get("id") else None,
-                    "assignment_name": item.get("name") or "Untitled assignment",
-                    "assignment_url": item.get("html_url"),
-                    "assignment_group_id": str(item.get("assignment_group_id")) if item.get("assignment_group_id") else None,
-                    "due_date_iso": item.get("due_at"),
-                    "unlock_at": item.get("unlock_at"),
-                    "lock_at": item.get("lock_at"),
-                    "published": bool(item.get("published", False)),
-                    "locked_for_user": bool(item.get("locked_for_user", False)),
-                    "workflow_state": item.get("workflow_state"),
-                    "score": self._safe_float(submission.get("score")),
-                    "max_score": self._safe_float(item.get("points_possible")),
-                    "submitted_at": submission.get("submitted_at"),
-                    "submission_workflow_state": submission.get("workflow_state"),
-                    "missing": submission.get("missing"),
-                    "late": submission.get("late"),
-                    "excused": submission.get("excused"),
-                    "status": "unknown",
-                }
-            )
+    def get_assignment_detail_for_course(
+        self,
+        course_id: str,
+        course_name: str,
+        course_url: str,
+        assignment_id: str,
+    ) -> dict:
+        item = self._get(
+            f"/api/v1/courses/{course_id}/assignments/{assignment_id}",
+            params={"include[]": ["submission"]},
+        )
+        return self._normalize_assignment_payload(course_id, course_name, course_url, item)
 
-        return assignments
+    def get_grade_page_payload_for_course(self, course_id: str) -> dict:
+        """
+        Canvas sometimes hides/mutes grades in the normal assignments API while the
+        student grades page still embeds the real submission score inside ENV.submissions.
+        This method reads /courses/:id/grades and extracts that embedded ENV payload.
+
+        If Canvas does not allow the API token to fetch the HTML page in a specific
+        institution, this method returns an empty payload and the API path still works.
+        """
+        try:
+            html = self._get_text(f"/courses/{course_id}/grades")
+            env = self._extract_canvas_env(html)
+            if not isinstance(env, dict):
+                return self._empty_grade_page_payload()
+            return self._normalize_grade_page_payload(env)
+        except Exception as exc:
+            return {
+                **self._empty_grade_page_payload(),
+                "available": False,
+                "error": str(exc),
+            }
+
+    def _normalize_assignment_payload(self, course_id: str, course_name: str, course_url: str, item: dict) -> dict:
+        submission = item.get("submission") or {}
+        return {
+            "course_id": str(course_id),
+            "course_name": course_name,
+            "course_url": course_url,
+            "assignment_id": str(item.get("id")) if item.get("id") else None,
+            "assignment_name": item.get("name") or "Untitled assignment",
+            "assignment_url": item.get("html_url"),
+            "assignment_group_id": str(item.get("assignment_group_id")) if item.get("assignment_group_id") else None,
+            "due_date_iso": item.get("due_at"),
+            "unlock_at": item.get("unlock_at"),
+            "lock_at": item.get("lock_at"),
+            "published": bool(item.get("published", False)),
+            "locked_for_user": bool(item.get("locked_for_user", False)),
+            "workflow_state": item.get("workflow_state"),
+            "score": self._safe_float(submission.get("score")),
+            "entered_score": self._safe_float(submission.get("entered_score")),
+            "grade": submission.get("grade"),
+            "entered_grade": submission.get("entered_grade"),
+            "max_score": self._safe_float(item.get("points_possible")),
+            "submitted_at": submission.get("submitted_at"),
+            "submission_workflow_state": submission.get("workflow_state"),
+            "missing": submission.get("missing"),
+            "late": submission.get("late"),
+            "excused": submission.get("excused"),
+            "muted": bool(item.get("muted", False)),
+            "omit_from_final_grade": bool(item.get("omit_from_final_grade", False)),
+            "status": "unknown",
+        }
 
     def get_assignment_groups_for_course(self, course_id: str) -> list[dict]:
-        data = self._get(
+        data = self._get_paginated(
             f"/api/v1/courses/{course_id}/assignment_groups",
-            params={
-                "per_page": 100,
-            },
+            params={"per_page": 100},
         )
 
         groups: list[dict] = []
@@ -144,6 +301,121 @@ class CanvasAPIService:
                 }
             )
         return groups
+
+    def _extract_canvas_env(self, html: str) -> dict | None:
+        marker = "ENV ="
+        start = html.find(marker)
+        if start == -1:
+            marker = "ENV="
+            start = html.find(marker)
+        if start == -1:
+            return None
+
+        brace_start = html.find("{", start)
+        if brace_start == -1:
+            return None
+
+        brace_count = 0
+        in_string = False
+        quote = ""
+        escaped = False
+
+        for index in range(brace_start, len(html)):
+            char = html[index]
+
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif char == "\\":
+                    escaped = True
+                elif char == quote:
+                    in_string = False
+                continue
+
+            if char in {'"', "'"}:
+                in_string = True
+                quote = char
+                continue
+
+            if char == "{":
+                brace_count += 1
+            elif char == "}":
+                brace_count -= 1
+                if brace_count == 0:
+                    raw_json = html[brace_start : index + 1]
+                    try:
+                        return json.loads(raw_json)
+                    except json.JSONDecodeError:
+                        return None
+
+        return None
+
+    def _normalize_grade_page_payload(self, env: dict) -> dict:
+        submissions_by_assignment_id: dict[str, dict] = {}
+        for submission in env.get("submissions") or []:
+            assignment_id = submission.get("assignment_id")
+            if assignment_id is None:
+                continue
+            assignment_id = str(assignment_id)
+            submissions_by_assignment_id[assignment_id] = {
+                "assignment_id": assignment_id,
+                "score": self._safe_float(submission.get("score")),
+                "entered_score": self._safe_float(submission.get("entered_score")),
+                "grade": submission.get("grade"),
+                "entered_grade": submission.get("entered_grade"),
+                "workflow_state": submission.get("workflow_state"),
+                "submission_type": submission.get("submission_type"),
+                "excused": submission.get("excused"),
+                "assignment_url": submission.get("assignment_url"),
+                "source": "grade_page_env_submissions",
+            }
+
+        assignments_by_id: dict[str, dict] = {}
+        normalized_groups: list[dict] = []
+        for group in env.get("assignment_groups") or []:
+            group_id = str(group.get("id")) if group.get("id") is not None else None
+            normalized_groups.append(
+                {
+                    "group_id": group_id,
+                    "name": group.get("name") or "Unnamed group",
+                    "group_weight": self._safe_float(group.get("group_weight")) or 0.0,
+                    "rules": group.get("rules") or {},
+                }
+            )
+            for assignment in group.get("assignments") or []:
+                assignment_id = assignment.get("id")
+                if assignment_id is None:
+                    continue
+                assignment_id = str(assignment_id)
+                assignments_by_id[assignment_id] = {
+                    "assignment_id": assignment_id,
+                    "assignment_group_id": group_id,
+                    "max_score": self._safe_float(assignment.get("points_possible")),
+                    "due_date_iso": assignment.get("due_at"),
+                    "muted": bool(assignment.get("muted", False)),
+                    "omit_from_final_grade": bool(assignment.get("omit_from_final_grade", False)),
+                    "submission_types": assignment.get("submission_types") or [],
+                    "source": "grade_page_env_assignment_groups",
+                }
+
+        return {
+            "available": True,
+            "submissions_by_assignment_id": submissions_by_assignment_id,
+            "assignments_by_id": assignments_by_id,
+            "assignment_groups": normalized_groups,
+            "group_weighting_scheme": env.get("group_weighting_scheme"),
+            "show_total_grade_as_points": env.get("show_total_grade_as_points"),
+            "hide_final_grades": env.get("hide_final_grades"),
+            "current_user_id": str(env.get("current_user_id")) if env.get("current_user_id") is not None else None,
+        }
+
+    def _empty_grade_page_payload(self) -> dict:
+        return {
+            "available": False,
+            "submissions_by_assignment_id": {},
+            "assignments_by_id": {},
+            "assignment_groups": [],
+        }
 
     def _extract_student_enrollment(self, enrollments: list[dict]) -> dict:
         for enrollment in enrollments:

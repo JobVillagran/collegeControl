@@ -24,18 +24,12 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 function formatNumber(value) {
   const numeric = Number(value ?? 0);
   if (Number.isNaN(numeric)) return "0";
-
   if (Number.isInteger(numeric)) return String(numeric);
-
-  return numeric
-    .toFixed(2)
-    .replace(/\.00$/, "")
-    .replace(/(\.\d)0$/, "$1");
+  return numeric.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
 }
 
 function formatDateTime(value) {
   if (!value) return "No due date";
-
   try {
     const result = DATE_TIME_FORMATTER.format(new Date(value));
     return result.replace(" am", " AM").replace(" pm", " PM");
@@ -46,7 +40,6 @@ function formatDateTime(value) {
 
 function formatStatusLabel(value) {
   if (!value) return "Info";
-
   const dictionary = {
     not_enabled_yet: "Not enabled yet",
     submitted: "Submitted",
@@ -62,42 +55,28 @@ function formatStatusLabel(value) {
     healthy: "Healthy",
     watch: "Watch",
     at_risk: "At risk",
-    not_enough_data: "Low data",
+    critical: "Critical",
+    not_enough_data: "Incomplete data",
     no_due_date: "No due date",
+    not_applicable: "N/A",
+    passed: "Passed",
+    failed: "Failed",
+    in_progress: "In progress",
   };
-
   if (dictionary[value]) return dictionary[value];
-
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function getStatusClass(value) {
   const normalized = (value || "").toLowerCase();
-
-  if (["submitted", "graded", "healthy", "open", "published"].includes(normalized)) {
-    return "success";
-  }
-
-  if (["missing", "late", "at_risk"].includes(normalized)) {
-    return "danger";
-  }
-
-  if (
-    ["submitted_pending", "watch", "not_enabled_yet", "not_enough_data", "no_due_date"].includes(
-      normalized
-    )
-  ) {
-    return "warning";
-  }
-
+  if (["submitted", "graded", "healthy", "open", "published", "passed"].includes(normalized)) return "success";
+  if (["missing", "late", "at_risk", "critical", "failed"].includes(normalized)) return "danger";
+  if (["submitted_pending", "watch", "not_enabled_yet", "not_enough_data", "no_due_date"].includes(normalized)) return "warning";
   return "neutral";
 }
 
 function BrandLockup({ compact = false, theme = "light", showSubtitle = true }) {
   const logoSrc = theme === "dark" ? brandLogoWhite : brandLogoColor;
-
   return (
     <div className={`brand-lockup ${compact ? "compact" : ""} ${theme}`}>
       <img src={logoSrc} alt="Athena Desk logo" className="brand-logo" />
@@ -120,12 +99,9 @@ function StatCard({ label, value, tone = "default" }) {
 
 function SyncBanner({ sync }) {
   if (!sync) return null;
-
   return (
     <div className={`sync-banner ${sync.status || "healthy"}`}>
-      <div className="sync-banner-title">
-        {sync.status === "healthy" ? "Sync healthy" : "Sync issue"}
-      </div>
+      <div className="sync-banner-title">{sync.status === "healthy" ? "Sync healthy" : "Sync issue"}</div>
       <div className="sync-banner-text">{sync.message}</div>
       {sync.last_synced_at ? <small>Last sync: {formatDateTime(sync.last_synced_at)}</small> : null}
     </div>
@@ -134,14 +110,12 @@ function SyncBanner({ sync }) {
 
 function AssignmentList({ title, items }) {
   if (!items || items.length === 0) return null;
-
   return (
     <section className="panel panel-soft">
       <div className="panel-header">
         <h2>{title}</h2>
         <span className="panel-count">{items.length}</span>
       </div>
-
       <div className="assignment-list">
         {items.map((item, index) => (
           <div className="assignment-card" key={`${item.assignment_id || item.assignment_name}-${index}`}>
@@ -149,27 +123,13 @@ function AssignmentList({ title, items }) {
               <div className="assignment-card-copy">
                 <div className="assignment-course">{item.course_name}</div>
                 <div className="assignment-title">{item.assignment_name}</div>
-                <div className="assignment-meta">
-                  Due: {item.due_date_iso ? formatDateTime(item.due_date_iso) : "No due date"}
-                </div>
+                <div className="assignment-meta">Due: {item.due_date_iso ? formatDateTime(item.due_date_iso) : "No due date"}</div>
               </div>
-
-              <span className={`status-pill ${getStatusClass(item.status)}`}>
-                {formatStatusLabel(item.status)}
-              </span>
+              <span className={`status-pill ${getStatusClass(item.status)}`}>{formatStatusLabel(item.status)}</span>
             </div>
-
             <div className="assignment-card-actions">
               {typeof item.hours_until_due === "number" ? (
-                <div
-                  className={`urgency-chip ${
-                    item.hours_until_due <= 24
-                      ? "critical"
-                      : item.hours_until_due <= 48
-                      ? "warning"
-                      : "normal"
-                  }`}
-                >
+                <div className={`urgency-chip ${item.hours_until_due <= 24 ? "critical" : item.hours_until_due <= 48 ? "warning" : "normal"}`}>
                   {item.hours_until_due <= 24
                     ? `Act now • ${formatNumber(item.hours_until_due)}h left`
                     : item.hours_until_due <= 48
@@ -177,16 +137,8 @@ function AssignmentList({ title, items }) {
                     : `Upcoming • ${formatNumber(item.hours_until_due)}h left`}
                 </div>
               ) : null}
-
-              {item.submitted_at ? (
-                <div className="submitted-note">Submitted • waiting for grading</div>
-              ) : null}
-
-              {item.assignment_url ? (
-                <a className="action-link" href={item.assignment_url} target="_blank" rel="noreferrer">
-                  Open in Canvas
-                </a>
-              ) : null}
+              {item.submitted_at ? <div className="submitted-note">Submitted • waiting for grading</div> : null}
+              {item.assignment_url ? <a className="action-link" href={item.assignment_url} target="_blank" rel="noreferrer">Open in Canvas</a> : null}
             </div>
           </div>
         ))}
@@ -219,72 +171,91 @@ function MicroStat({ label, value, tone = "neutral" }) {
 }
 
 function ScoreBar({ course }) {
-  const securedPercent = Math.max(0, Math.min(100, Number(course.secured_over_100 ?? 0)));
+  const earnedPercent = Math.max(0, Math.min(100, Number(course.earned_effective_points ?? course.earned_points ?? 0)));
   const riskTone = getStatusClass(course.risk_level);
-
   return (
     <div className="score-block">
       <div className="score-header-row">
         <div>
-          <div className="score-block-label">Secured progress</div>
-          <div className="score-block-value">{`${formatNumber(course.secured_over_100 ?? 0)}/100`}</div>
+          <div className="score-block-label">Real points earned</div>
+          <div className="score-block-value">{`${formatNumber(course.earned_effective_points ?? course.earned_points ?? 0)} / ${formatNumber(course.total_points ?? 100)}`}</div>
         </div>
-
         <div className="score-threshold">
           Pass mark
-          <strong>{formatNumber(course.passing_score)} / 100</strong>
+          <strong>{formatNumber(course.passing_score)} / {formatNumber(course.total_points ?? 100)}</strong>
         </div>
       </div>
-
       <div className="score-bar-shell">
         <div className="score-bar-track">
-          <div
-            className={`score-bar-fill ${riskTone}`}
-            style={{ width: `${securedPercent}%` }}
-          />
-          <div
-            className="score-pass-marker"
-            style={{ left: `${Math.min(Number(course.pass_threshold_percent ?? 61), 100)}%` }}
-          />
+          <div className={`score-bar-fill ${riskTone}`} style={{ width: `${earnedPercent}%` }} />
+          <div className="score-pass-marker" style={{ left: `${Math.min(Number(course.pass_threshold_percent ?? 61), 100)}%` }} />
         </div>
       </div>
-
       <div className="score-bar-scale">
         <span>0</span>
-        <span className="score-pass-text">61 to pass</span>
-        <span>100</span>
+        <span className="score-pass-text">{formatNumber(course.passing_score)} to pass</span>
+        <span>{formatNumber(course.total_points ?? 100)}</span>
       </div>
     </div>
   );
 }
 
+function AttendanceBadge({ attendance }) {
+  const level = attendance?.level || "not_applicable";
+  return (
+    <div className={`attendance-box ${getStatusClass(level)}`}>
+      <div className="attendance-label">Attendance</div>
+      <div className="attendance-value">{attendance?.label || "N/A"}</div>
+    </div>
+  );
+}
+
+function ComponentsSummary({ components }) {
+  if (!components || components.length === 0) return null;
+  return (
+    <div className="component-summary">
+      {components.slice(0, 6).map((component) => (
+        <div className="component-row" key={component.type}>
+          <span>{component.label}</span>
+          <strong>{formatNumber(component.earned_points)} / {formatNumber(component.published_points)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RecoverySummary({ recoveryEvents }) {
+  if (!recoveryEvents || recoveryEvents.length === 0) return null;
+  return (
+    <div className="recovery-summary">
+      <div className="recovery-title">Recovery rule</div>
+      {recoveryEvents.map((event, index) => (
+        <div className="recovery-row" key={`${event.component}-${index}`}>
+          <span>{event.applied ? "Applied" : "Not applied"}</span>
+          <strong>{formatNumber(event.recovery_score)} / {formatNumber(event.recovery_points)}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CourseCard({ course }) {
-  const pendingReviewCount =
-    Number(course.submitted_pending_count ?? 0) +
-    Number(course.submitted_done_ungraded_count ?? 0);
+  const pendingReviewCount = Number(course.pending_grade_count ?? 0);
 
   const explanatoryText = useMemo(() => {
     const parts = [];
+    parts.push(`Real points: ${formatNumber(course.earned_effective_points ?? course.earned_points ?? 0)} / ${formatNumber(course.total_points ?? 100)}.`);
+    parts.push(`Effective published points: ${formatNumber(course.effective_published_points ?? course.published_points ?? 0)}.`);
 
-    parts.push(`Canvas published score: ${formatNumber(course.canvas_current_total_percent ?? 0)}%.`);
-    parts.push(`Secured progress: ${formatNumber(course.secured_over_100 ?? 0)}/100.`);
-
-    if (Number(course.pending_over_100 ?? 0) > 0) {
-      parts.push(`${formatNumber(course.pending_over_100)} point(s) are still pending review.`);
+    if (Number(course.lost_points ?? 0) > 0) parts.push(`${formatNumber(course.lost_points)} point(s) are already lost.`);
+    if (Number(course.pending_points ?? 0) > 0) parts.push(`${formatNumber(course.pending_points)} point(s) are submitted but pending grade.`);
+    if (Number(course.open_points ?? 0) > 0) parts.push(`${formatNumber(course.open_points)} point(s) are still open.`);
+    if (Number(course.hidden_or_review_points ?? 0) > 0) parts.push(`${formatNumber(course.hidden_or_review_points)} point(s) need manual/detail review.`);
+    if (Number(course.remaining_unpublished_points ?? 0) > 0) parts.push(`${formatNumber(course.remaining_unpublished_points)} point(s) are estimated as not published yet.`);
+    if (Number(course.remaining_to_pass ?? 0) > 0) parts.push(`Need ${formatNumber(course.remaining_to_pass)} more point(s) to reach ${formatNumber(course.passing_score)}.`);
+    if (course.required_percent_of_remaining !== null && course.required_percent_of_remaining !== undefined) {
+      parts.push(`Required from remaining: ${formatNumber(course.required_percent_of_remaining)}%.`);
     }
-
-    if (Number(course.missing_over_100 ?? 0) > 0) {
-      parts.push(`${formatNumber(course.missing_over_100)} point(s) are already lost or counted as zero.`);
-    }
-
-    if (Number(course.open_over_100 ?? 0) > 0) {
-      parts.push(`${formatNumber(course.open_over_100)} point(s) are still open ahead.`);
-    }
-
-    if (Number(course.remaining_to_pass ?? 0) > 0) {
-      parts.push(`${formatNumber(course.remaining_to_pass)} point(s) are still needed to secure passing.`);
-    }
-
     return parts.join(" ");
   }, [course]);
 
@@ -295,43 +266,27 @@ function CourseCard({ course }) {
           <div className="course-name">{course.course_name}</div>
           <div className="course-code">{course.course_code || "Current course"}</div>
         </div>
-
         <RiskPill level={course.risk_level} />
       </div>
 
       <div className="course-metrics">
-        <MetricTile
-          label="Secured / 100"
-          value={formatNumber(course.secured_over_100)}
-          helper="Confirmed impact over 100"
-          tone="neutral"
-        />
-        <MetricTile
-          label="Pending / 100"
-          value={formatNumber(course.pending_over_100)}
-          helper="Submitted but still ungraded"
-          tone="warning"
-        />
-        <MetricTile
-          label="Missed / 100"
-          value={formatNumber(course.missing_over_100)}
-          helper="Already counted as zero"
-          tone="danger"
-        />
-        <MetricTile
-          label="Open / 100"
-          value={formatNumber(course.open_over_100)}
-          helper="Still available ahead"
-          tone="success"
-        />
+        <MetricTile label="Earned points" value={`${formatNumber(course.earned_effective_points ?? course.earned_points)} / ${formatNumber(course.total_points)}`} helper="Real confirmed points" tone="neutral" />
+        {course.course_finished ? (
+          <MetricTile label="Final result" value={formatStatusLabel(course.course_result)} helper="Final/Recovery grade found" tone={course.course_result === "passed" ? "success" : "danger"} />
+        ) : (
+          <MetricTile label="Need to pass" value={formatNumber(course.remaining_to_pass)} helper={`Pass mark: ${formatNumber(course.passing_score)}`} tone={Number(course.remaining_to_pass ?? 0) > 0 ? "warning" : "success"} />
+        )}
+        <MetricTile label="Lost points" value={formatNumber(course.lost_points)} helper="Missed + points lost in grades" tone={Number(course.lost_points ?? 0) > 0 ? "danger" : "success"} />
+        <MetricTile label="Available" value={formatNumber(course.remaining_available_points)} helper="Open + pending + unpublished" tone="success" />
       </div>
 
       <div className="missing-strip">
-        <div className="missing-strip-title">Raw course points</div>
+        <div className="missing-strip-title">Point audit</div>
         <div className="missing-strip-values">
-          <span>Published: {formatNumber(course.published_points)}</span>
-          <span>Pending: {formatNumber(course.submitted_pending_points)}</span>
-          <span>Missing: {formatNumber(course.missing_points)}</span>
+          <span>Published: {formatNumber(course.effective_published_points ?? course.published_points)}</span>
+          <span>Pending: {formatNumber(course.pending_points)}</span>
+          <span>Review: {formatNumber(course.hidden_or_review_points)}</span>
+          <span>Unpublished est.: {formatNumber(course.remaining_unpublished_points)}</span>
         </div>
       </div>
 
@@ -341,83 +296,53 @@ function CourseCard({ course }) {
         <MicroStat label="Graded" value={formatNumber(course.graded_count)} />
         <MicroStat label="Pending" value={formatNumber(pendingReviewCount)} tone="warning" />
         <MicroStat label="Missed" value={formatNumber(course.missing_count)} tone="danger" />
-        <MicroStat label="Open" value={formatNumber(course.open_count)} />
+        <AttendanceBadge attendance={course.attendance} />
       </div>
 
-      <div className="risk-reason">{explanatoryText}</div>
+      <ComponentsSummary components={course.components} />
+      <RecoverySummary recoveryEvents={course.recovery_events} />
+
+      <div className="risk-reason">{course.risk_reason || explanatoryText}</div>
+      <div className="risk-reason secondary">{explanatoryText}</div>
     </div>
   );
 }
 
 function AccessGate({ onUnlock, errorMessage, loading }) {
   const [accessKey, setAccessKey] = useState("");
-
   const submit = async (event) => {
     event.preventDefault();
     if (!accessKey.trim() || loading) return;
     await onUnlock(accessKey.trim());
   };
-
   return (
     <div className="gate-shell">
       <div className="gate-layout">
         <div className="gate-brand-panel">
           <BrandLockup theme="dark" />
-
           <h1>Secure academic workspace</h1>
-
-          <p>
-            Enter your private access key to open your personal university dashboard,
-            refresh tasks, and review course progress securely.
-          </p>
-
+          <p>Enter your private access key to open your personal university dashboard, refresh tasks, and review course progress securely.</p>
           <div className="gate-brand-points">
             <div>Current-term courses only</div>
             <div>Canvas-backed live sync</div>
             <div>Protected refresh and dashboard access</div>
           </div>
         </div>
-
         <div className="gate-card">
           <div className="creator-block">
             <img src={creatorPhoto} alt="Job Villagran" className="creator-avatar" />
-
             <div className="creator-meta">
               <span className="creator-label">Created by</span>
-              <a
-                href="https://www.linkedin.com/in/jobvillagran/"
-                target="_blank"
-                rel="noreferrer"
-                className="creator-link"
-              >
-                Job Villagran
-              </a>
+              <a href="https://www.linkedin.com/in/jobvillagran/" target="_blank" rel="noreferrer" className="creator-link">Job Villagran</a>
             </div>
           </div>
-
           <div className="gate-title">Welcome back</div>
           <div className="gate-subtitle">Enter your private access key to continue.</div>
-
           <form onSubmit={submit} className="gate-form">
-            <label className="gate-label" htmlFor="accessKey">
-              Access key
-            </label>
-
-            <input
-              id="accessKey"
-              type="password"
-              className="gate-input"
-              placeholder="Enter access key"
-              value={accessKey}
-              onChange={(e) => setAccessKey(e.target.value)}
-              autoComplete="off"
-            />
-
+            <label className="gate-label" htmlFor="accessKey">Access key</label>
+            <input id="accessKey" type="password" className="gate-input" placeholder="Enter access key" value={accessKey} onChange={(e) => setAccessKey(e.target.value)} autoComplete="off" />
             {errorMessage ? <div className="gate-error">{errorMessage}</div> : null}
-
-            <button type="submit" className="gate-button" disabled={loading}>
-              {loading ? "Validating..." : "Unlock dashboard"}
-            </button>
+            <button type="submit" className="gate-button" disabled={loading}>{loading ? "Validating..." : "Unlock dashboard"}</button>
           </form>
         </div>
       </div>
@@ -436,13 +361,11 @@ export default function App() {
   useEffect(() => {
     const existingKey = getStoredAccessKey();
     if (!existingKey) return;
-
     const bootstrap = async () => {
       try {
         setLoading(true);
         setError("");
         setAuthError("");
-
         const payload = await getDashboard(false);
         setData(payload);
         setIsUnlocked(true);
@@ -455,7 +378,6 @@ export default function App() {
         setLoading(false);
       }
     };
-
     bootstrap();
   }, []);
 
@@ -464,7 +386,6 @@ export default function App() {
       setError("");
       if (force) setRefreshing(true);
       else setLoading(true);
-
       const payload = force ? await refreshDashboard() : await getDashboard(false);
       setData(payload);
     } catch (err) {
@@ -487,9 +408,7 @@ export default function App() {
       setLoading(true);
       setAuthError("");
       setError("");
-
       const payload = await validateAccessKey(key);
-
       storeAccessKey(key);
       setData(payload);
       setIsUnlocked(true);
@@ -511,29 +430,16 @@ export default function App() {
     setIsUnlocked(false);
   };
 
-  if (!isUnlocked) {
-    return <AccessGate onUnlock={unlock} errorMessage={authError} loading={loading} />;
-  }
-
-  if (loading && !data) {
-    return <div className="screen-state">Loading dashboard...</div>;
-  }
+  if (!isUnlocked) return <AccessGate onUnlock={unlock} errorMessage={authError} loading={loading} />;
+  if (loading && !data) return <div className="screen-state">Loading dashboard...</div>;
 
   return (
     <div className="app-shell">
       <header className="hero">
-        <div className="hero-main">
-          <BrandLockup compact theme="light" showSubtitle={false} />
-        </div>
-
+        <div className="hero-main"><BrandLockup compact theme="light" showSubtitle={false} /></div>
         <div className="hero-actions">
-          <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh now"}
-          </button>
-
-          <button className="logout-btn" onClick={logout}>
-            Lock
-          </button>
+          <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>{refreshing ? "Refreshing..." : "Refresh now"}</button>
+          <button className="logout-btn" onClick={logout}>Lock</button>
         </div>
       </header>
 
@@ -548,7 +454,7 @@ export default function App() {
         <StatCard label="Submitted" value={data?.summary?.submitted ?? 0} tone="green" />
         <StatCard label="At risk" value={data?.summary?.courses_at_risk ?? 0} tone="danger" />
         <StatCard label="Watch" value={data?.summary?.courses_watch ?? 0} tone="amber" />
-        <StatCard label="Low data" value={data?.summary?.courses_not_enough_data ?? 0} tone="neutral" />
+        <StatCard label="Incomplete" value={data?.summary?.courses_not_enough_data ?? 0} tone="neutral" />
       </section>
 
       <AssignmentList title="Act now" items={data?.groups?.act_now} />
@@ -564,11 +470,8 @@ export default function App() {
           <h2>Course progress</h2>
           <span className="panel-count">{data?.courses?.length ?? 0}</span>
         </div>
-
         <div className="course-grid">
-          {data?.courses?.map((course) => (
-            <CourseCard key={course.course_id} course={course} />
-          ))}
+          {data?.courses?.map((course) => <CourseCard key={course.course_id} course={course} />)}
         </div>
       </section>
     </div>
