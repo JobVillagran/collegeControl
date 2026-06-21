@@ -1,5 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  CheckSquare,
+  CircleDashed,
+  ClipboardList,
+  Eye,
+  FileText,
+  Folder,
+  GraduationCap,
+  Lock,
+  Moon,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+  Sun,
+} from "lucide-react";
+import {
   clearAccessKey,
   getDashboard,
   getStoredAccessKey,
@@ -13,7 +31,7 @@ import {
   getInitialLanguage,
   saveLanguage,
   translateStatus,
-  translateSyncMessage,
+  translateComponent,
 } from "./i18n";
 import creatorPhoto from "./assets/job-villagran.png";
 import brandLogoColor from "./assets/athena-desk-color.png";
@@ -21,8 +39,39 @@ import brandLogoWhite from "./assets/athena-desk-white.png";
 
 const TIME_ZONE = "America/Guatemala";
 
+const THEME_STORAGE_KEY = "athena_desk_theme";
+
+function normalizeTheme(value) {
+  return value === "dark" ? "dark" : "light";
+}
+
+function getInitialTheme() {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored) return normalizeTheme(stored);
+  } catch {
+    // ignore
+  }
+
+  try {
+    if (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches) return "dark";
+  } catch {
+    // ignore
+  }
+
+  return "light";
+}
+
+function saveTheme(theme) {
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, normalizeTheme(theme));
+  } catch {
+    // ignore
+  }
+}
+
 function getLocale(language) {
-  return LANGUAGES[language]?.locale || LANGUAGES.en.locale;
+  return LANGUAGES[language]?.locale || LANGUAGES.es.locale;
 }
 
 function formatNumber(value) {
@@ -34,6 +83,7 @@ function formatNumber(value) {
 
 function formatDateTime(value, language) {
   if (!value) return null;
+
   try {
     const result = new Intl.DateTimeFormat(getLocale(language), {
       day: "2-digit",
@@ -45,17 +95,47 @@ function formatDateTime(value, language) {
       timeZone: TIME_ZONE,
     }).format(new Date(value));
 
-    return result.replace(" am", " AM").replace(" pm", " PM").replace("a. m.", "AM").replace("p. m.", "PM");
+    return result
+      .replace(" am", " AM")
+      .replace(" pm", " PM")
+      .replace("a. m.", "AM")
+      .replace("p. m.", "PM")
+      .replace("a. m.", "AM")
+      .replace("p. m.", "PM");
   } catch {
     return value;
   }
 }
 
+function formatShortDate(value, language) {
+  if (!value) return "--";
+
+  try {
+    return new Intl.DateTimeFormat(getLocale(language), {
+      month: "short",
+      day: "2-digit",
+      timeZone: TIME_ZONE,
+    }).format(new Date(value));
+  } catch {
+    return "--";
+  }
+}
+
 function getStatusClass(value) {
-  const normalized = (value || "").toLowerCase();
-  if (["submitted", "graded", "healthy", "open", "published", "passed"].includes(normalized)) return "success";
-  if (["missing", "late", "at_risk", "critical", "failed"].includes(normalized)) return "danger";
-  if (["submitted_pending", "watch", "not_enabled_yet", "not_enough_data", "no_due_date"].includes(normalized)) return "warning";
+  const normalized = String(value || "").toLowerCase();
+
+  if (["submitted", "graded", "healthy", "open", "published", "passed"].includes(normalized)) {
+    return "success";
+  }
+
+  if (["missing", "late", "at_risk", "critical", "failed"].includes(normalized)) {
+    return "danger";
+  }
+
+  if (["submitted_pending", "watch", "not_enabled_yet", "not_enough_data", "no_due_date"].includes(normalized)) {
+    return "warning";
+  }
+
   return "neutral";
 }
 
@@ -82,11 +162,29 @@ function LanguageToggle({ language, onChange, compact = false }) {
   );
 }
 
-function BrandLockup({ compact = false, theme = "light", showSubtitle = true, t }) {
-  const logoSrc = theme === "dark" ? brandLogoWhite : brandLogoColor;
+function ThemeToggle({ theme, onChange, compact = false, t }) {
+  const isDark = theme === "dark";
+  const nextTheme = isDark ? "light" : "dark";
+
   return (
-    <div className={`brand-lockup ${compact ? "compact" : ""} ${theme}`}>
-      <img src={logoSrc} alt="Athena Desk logo" className="brand-logo" />
+    <button
+      type="button"
+      className={`theme-toggle ${compact ? "compact" : ""}`}
+      onClick={() => onChange(nextTheme)}
+      aria-label={isDark ? t("theme.switchToLight") : t("theme.switchToDark")}
+      title={isDark ? t("theme.switchToLight") : t("theme.switchToDark")}
+    >
+      {isDark ? <Sun size={17} /> : <Moon size={17} />}
+      <span>{isDark ? t("theme.light") : t("theme.dark")}</span>
+    </button>
+  );
+}
+
+function BrandLockup({ compact = false, showSubtitle = false, t }) {
+  return (
+    <div className={`brand-lockup ${compact ? "compact" : ""}`}>
+      <img src={brandLogoColor} alt="Athena Desk logo" className="brand-logo brand-logo-light" />
+      <img src={brandLogoWhite} alt="Athena Desk logo" className="brand-logo brand-logo-dark" />
       <div className="brand-text-wrap">
         <div className="brand-name">Athena Desk</div>
         {showSubtitle ? <div className="brand-subtitle">{t("brand.subtitle")}</div> : null}
@@ -95,138 +193,162 @@ function BrandLockup({ compact = false, theme = "light", showSubtitle = true, t 
   );
 }
 
-function StatCard({ label, value, tone = "default" }) {
+function SyncChip({ sync, language, t }) {
+  if (!sync) return null;
+
+  const lastSync = sync?.last_synced_at ? formatDateTime(sync.last_synced_at, language) : null;
+  const healthy = sync?.status === "healthy" || !sync?.status;
+
+  return (
+    <div className={`sync-chip ${healthy ? "healthy" : "warning"}`}>
+      <span className="sync-dot" />
+      <div>
+        <strong>{healthy ? t("ui.compactSync") : t("sync.issue")}</strong>
+        {lastSync ? <small>{lastSync}</small> : null}
+      </div>
+    </div>
+  );
+}
+
+function RefreshOverlay({ progress, t }) {
+  return (
+    <div className="refresh-overlay" role="status" aria-live="polite" aria-busy="true">
+      <div className="refresh-loader-card">
+        <div className="refresh-orbit" style={{ "--refresh-progress": `${progress}%` }}>
+          <div className="refresh-orbit-inner">
+            <span>{progress}%</span>
+          </div>
+        </div>
+
+        <div className="refresh-loader-copy">
+          <strong>{t("ui.refreshTitle")}</strong>
+          <span>{t("ui.refreshSubtitle")}</span>
+        </div>
+
+        <div className="refresh-loader-bar">
+          <div style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, tone = "default" }) {
   return (
     <div className={`stat-card ${tone}`}>
-      <div className="stat-label">{label}</div>
-      <div className="stat-value">{formatNumber(value)}</div>
+      <div className="stat-icon">
+        <Icon size={24} strokeWidth={1.85} />
+      </div>
+      <div className="stat-copy">
+        <div className="stat-value">{formatNumber(value)}</div>
+        <div className="stat-label">{label}</div>
+      </div>
     </div>
   );
 }
 
-function SyncBanner({ sync, t, language }) {
-  if (!sync) return null;
-  return (
-    <div className={`sync-banner ${sync.status || "healthy"}`}>
-      <div className="sync-banner-title">{sync.status === "healthy" ? t("sync.healthy") : t("sync.issue")}</div>
-      <div className="sync-banner-text">{translateSyncMessage(sync.message, t)}</div>
-      {sync.last_synced_at ? <small>{t("sync.last")}: {formatDateTime(sync.last_synced_at, language)}</small> : null}
-    </div>
-  );
-}
+function StatsOverview({ summary, t }) {
+  const stats = [
+    {
+      label: t("stats.actionable"),
+      value: summary?.actionable ?? 0,
+      icon: CheckSquare,
+      tone: "blue",
+    },
+    {
+      label: t("stats.urgent"),
+      value: summary?.urgent ?? 0,
+      icon: AlertTriangle,
+      tone: "red",
+    },
+    {
+      label: t("stats.opensSoon"),
+      value: summary?.opens_soon ?? 0,
+      icon: CalendarDays,
+      tone: "indigo",
+    },
+    {
+      label: t("stats.projects"),
+      value: summary?.projects ?? 0,
+      icon: Folder,
+      tone: "amber",
+    },
+    {
+      label: t("stats.submitted"),
+      value: summary?.submitted ?? 0,
+      icon: Send,
+      tone: "green",
+    },
+    {
+      label: t("stats.atRisk"),
+      value: summary?.courses_at_risk ?? 0,
+      icon: AlertTriangle,
+      tone: "red",
+    },
+    {
+      label: t("stats.watch"),
+      value: summary?.courses_watch ?? 0,
+      icon: Eye,
+      tone: "amber",
+    },
+    {
+      label: t("stats.incomplete"),
+      value: summary?.courses_not_enough_data ?? 0,
+      icon: CircleDashed,
+      tone: "slate",
+    },
+  ];
 
-function AssignmentList({ title, items, t, language }) {
-  if (!items || items.length === 0) return null;
   return (
-    <section className="panel panel-soft">
-      <div className="panel-header">
-        <h2>{title}</h2>
-        <span className="panel-count">{items.length}</span>
-      </div>
-      <div className="assignment-list">
-        {items.map((item, index) => (
-          <div className="assignment-card" key={`${item.assignment_id || item.assignment_name}-${index}`}>
-            <div className="assignment-card-header">
-              <div className="assignment-card-copy">
-                <div className="assignment-course">{item.course_name}</div>
-                <div className="assignment-title">{item.assignment_name}</div>
-                <div className="assignment-meta">
-                  {t("assignment.due")}: {item.due_date_iso ? formatDateTime(item.due_date_iso, language) : t("assignment.noDueDate")}
-                </div>
-              </div>
-              <span className={`status-pill ${getStatusClass(item.status)}`}>{translateStatus(item.status, t)}</span>
-            </div>
-            <div className="assignment-card-actions">
-              {typeof item.hours_until_due === "number" ? (
-                <div className={`urgency-chip ${item.hours_until_due <= 24 ? "critical" : item.hours_until_due <= 48 ? "warning" : "normal"}`}>
-                  {item.hours_until_due <= 24
-                    ? t("assignment.urgency.actNow", { hours: formatNumber(item.hours_until_due) })
-                    : item.hours_until_due <= 48
-                    ? t("assignment.urgency.soon", { hours: formatNumber(item.hours_until_due) })
-                    : t("assignment.urgency.upcoming", { hours: formatNumber(item.hours_until_due) })}
-                </div>
-              ) : null}
-              {item.submitted_at ? <div className="submitted-note">{t("assignment.submittedWaiting")}</div> : null}
-              {item.assignment_url ? <a className="action-link" href={item.assignment_url} target="_blank" rel="noreferrer">{t("actions.openCanvas")}</a> : null}
-            </div>
-          </div>
-        ))}
-      </div>
+    <section className="stats-grid" aria-label="Dashboard summary">
+      {stats.map((stat) => (
+        <StatCard key={stat.label} {...stat} />
+      ))}
     </section>
   );
 }
 
-function RiskPill({ level, t }) {
-  return <span className={`risk-pill ${getStatusClass(level)}`}>{translateStatus(level, t)}</span>;
+function StatusBadge({ value, t }) {
+  const statusClass = getStatusClass(value);
+  return <span className={`status-badge ${statusClass}`}>{translateStatus(value, t)}</span>;
 }
 
-function MetricTile({ label, value, helper = "", tone = "neutral" }) {
-  return (
-    <div className={`metric-tile ${tone}`}>
-      <div className="metric-label">{label}</div>
-      <div className="metric-value">{value}</div>
-      {helper ? <div className="metric-helper">{helper}</div> : null}
-    </div>
-  );
-}
+function ScoreProgress({ course, t }) {
+  const earned = Number(course.earned_effective_points ?? course.earned_points ?? 0);
+  const total = Number(course.total_points ?? 100) || 100;
+  const passing = Number(course.passing_score ?? 61);
+  const earnedPercent = Math.max(0, Math.min(100, (earned / total) * 100));
+  const passPercent = Math.max(0, Math.min(100, (passing / total) * 100));
+  const tone = course.course_result ? getStatusClass(course.course_result) : getStatusClass(course.risk_level);
 
-function MicroStat({ label, value, tone = "neutral" }) {
   return (
-    <div className={`micro-stat ${tone}`}>
-      <div className="micro-stat-label">{label}</div>
-      <div className="micro-stat-value">{value}</div>
-    </div>
-  );
-}
-
-function ScoreBar({ course, t }) {
-  const earnedPercent = Math.max(0, Math.min(100, Number(course.earned_effective_points ?? course.earned_points ?? 0)));
-  const riskTone = getStatusClass(course.risk_level);
-  return (
-    <div className="score-block">
-      <div className="score-header-row">
-        <div>
-          <div className="score-block-label">{t("course.realPointsEarned")}</div>
-          <div className="score-block-value">{`${formatNumber(course.earned_effective_points ?? course.earned_points ?? 0)} / ${formatNumber(course.total_points ?? 100)}`}</div>
-        </div>
-        <div className="score-threshold">
-          {t("course.passMark")}
-          <strong>{formatNumber(course.passing_score)} / {formatNumber(course.total_points ?? 100)}</strong>
-        </div>
+    <div className="progress-compact">
+      <div className="progress-compact-top">
+        <strong>{formatNumber(earned)} / {formatNumber(total)}</strong>
+        <span>
+          {t("course.passMark")} {formatNumber(passing)} / {formatNumber(total)}
+        </span>
       </div>
-      <div className="score-bar-shell">
-        <div className="score-bar-track">
-          <div className={`score-bar-fill ${riskTone}`} style={{ width: `${earnedPercent}%` }} />
-          <div className="score-pass-marker" style={{ left: `${Math.min(Number(course.pass_threshold_percent ?? 61), 100)}%` }} />
-        </div>
-      </div>
-      <div className="score-bar-scale">
-        <span>0</span>
-        <span className="score-pass-text">{formatNumber(course.passing_score)} {t("course.toPass")}</span>
-        <span>{formatNumber(course.total_points ?? 100)}</span>
+
+      <div className="progress-track">
+        <div className={`progress-fill ${tone}`} style={{ width: `${earnedPercent}%` }} />
+        <div className="progress-marker" style={{ left: `${passPercent}%` }} />
       </div>
     </div>
   );
 }
 
-function AttendanceBadge({ attendance, t }) {
-  const level = attendance?.level || "not_applicable";
-  return (
-    <div className={`attendance-box ${getStatusClass(level)}`}>
-      <div className="attendance-label">{t("course.attendance")}</div>
-      <div className="attendance-value">{attendance?.label || "N/A"}</div>
-    </div>
-  );
-}
-
-function ComponentsSummary({ components }) {
+function ComponentRows({ components, t }) {
   if (!components || components.length === 0) return null;
+
   return (
-    <div className="component-summary">
-      {components.slice(0, 6).map((component) => (
-        <div className="component-row" key={component.type}>
-          <span>{component.label}</span>
-          <strong>{formatNumber(component.earned_points)} / {formatNumber(component.published_points)}</strong>
+    <div className="component-list">
+      {components.slice(0, 5).map((component) => (
+        <div className="component-item" key={component.type}>
+          <span>{translateComponent(component, t)}</span>
+          <strong>
+            {formatNumber(component.earned_points)} / {formatNumber(component.published_points)}
+          </strong>
         </div>
       ))}
     </div>
@@ -235,149 +357,408 @@ function ComponentsSummary({ components }) {
 
 function RecoverySummary({ recoveryEvents, t }) {
   if (!recoveryEvents || recoveryEvents.length === 0) return null;
+
   return (
     <div className="recovery-summary">
       <div className="recovery-title">{t("course.recoveryRule")}</div>
       {recoveryEvents.map((event, index) => (
         <div className="recovery-row" key={`${event.component}-${index}`}>
           <span>{event.applied ? t("course.applied") : t("course.notApplied")}</span>
-          <strong>{formatNumber(event.recovery_score)} / {formatNumber(event.recovery_points)}</strong>
+          <strong>
+            {formatNumber(event.recovery_score)} / {formatNumber(event.recovery_points)}
+          </strong>
         </div>
       ))}
     </div>
   );
 }
 
-function CourseCard({ course, t }) {
-  const pendingReviewCount = Number(course.pending_grade_count ?? 0);
+function CourseCard({ course, language, t }) {
+  const finishedStatus = course.course_finished ? course.course_result : course.risk_level;
+  const attendance = course.attendance?.label || "N/A";
+  const attendanceLevel = getStatusClass(course.attendance?.level || "not_applicable");
 
   const explanatoryText = useMemo(() => {
     const parts = [];
-    parts.push(t("course.expl.realPoints", {
-      earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
-      total: formatNumber(course.total_points ?? 100),
-    }));
-    parts.push(t("course.expl.published", {
-      published: formatNumber(course.effective_published_points ?? course.published_points ?? 0),
-    }));
 
-    if (Number(course.lost_points ?? 0) > 0) parts.push(t("course.expl.lost", { points: formatNumber(course.lost_points) }));
-    if (Number(course.pending_points ?? 0) > 0) parts.push(t("course.expl.pending", { points: formatNumber(course.pending_points) }));
-    if (Number(course.open_points ?? 0) > 0) parts.push(t("course.expl.open", { points: formatNumber(course.open_points) }));
-    if (Number(course.hidden_or_review_points ?? 0) > 0) parts.push(t("course.expl.review", { points: formatNumber(course.hidden_or_review_points) }));
-    if (Number(course.remaining_unpublished_points ?? 0) > 0) parts.push(t("course.expl.unpublished", { points: formatNumber(course.remaining_unpublished_points) }));
-    if (Number(course.remaining_to_pass ?? 0) > 0) parts.push(t("course.expl.need", {
-      points: formatNumber(course.remaining_to_pass),
-      passing: formatNumber(course.passing_score),
-    }));
-    if (course.required_percent_of_remaining !== null && course.required_percent_of_remaining !== undefined) {
-      parts.push(t("course.expl.required", { percent: formatNumber(course.required_percent_of_remaining) }));
+    parts.push(
+      t("course.expl.realPoints", {
+        earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
+        total: formatNumber(course.total_points ?? 100),
+      })
+    );
+
+    parts.push(
+      t("course.expl.published", {
+        published: formatNumber(course.effective_published_points ?? course.published_points ?? 0),
+      })
+    );
+
+    if (Number(course.lost_points ?? 0) > 0) {
+      parts.push(t("course.expl.lost", { points: formatNumber(course.lost_points) }));
     }
+
+    if (Number(course.pending_points ?? 0) > 0) {
+      parts.push(t("course.expl.pending", { points: formatNumber(course.pending_points) }));
+    }
+
+    if (Number(course.open_points ?? 0) > 0) {
+      parts.push(t("course.expl.open", { points: formatNumber(course.open_points) }));
+    }
+
+    if (Number(course.hidden_or_review_points ?? 0) > 0) {
+      parts.push(t("course.expl.review", { points: formatNumber(course.hidden_or_review_points) }));
+    }
+
+    if (Number(course.remaining_unpublished_points ?? 0) > 0) {
+      parts.push(t("course.expl.unpublished", { points: formatNumber(course.remaining_unpublished_points) }));
+    }
+
+    if (Number(course.remaining_to_pass ?? 0) > 0) {
+      parts.push(
+        t("course.expl.need", {
+          points: formatNumber(course.remaining_to_pass),
+          passing: formatNumber(course.passing_score),
+        })
+      );
+    }
+
+    if (course.required_percent_of_remaining !== null && course.required_percent_of_remaining !== undefined) {
+      parts.push(
+        t("course.expl.required", {
+          percent: formatNumber(course.required_percent_of_remaining),
+        })
+      );
+    }
+
     return parts.join(" ");
   }, [course, t]);
 
-  const resultText = course.course_result === "passed"
-    ? t("course.finishedPassed", {
-        earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
-        passing: formatNumber(course.passing_score),
-      })
-    : course.course_result === "failed"
-    ? t("course.finishedFailed", {
-        earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
-        total: formatNumber(course.total_points ?? 100),
-        passing: formatNumber(course.passing_score),
-      })
-    : explanatoryText;
+  const resultText =
+    course.course_result === "passed"
+      ? t("course.finishedPassed", {
+          earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
+          passing: formatNumber(course.passing_score),
+        })
+      : course.course_result === "failed"
+        ? t("course.finishedFailed", {
+            earned: formatNumber(course.earned_effective_points ?? course.earned_points ?? 0),
+            total: formatNumber(course.total_points ?? 100),
+            passing: formatNumber(course.passing_score),
+          })
+        : explanatoryText;
 
   return (
-    <div className="course-card">
-      <div className="course-top">
-        <div className="course-title-wrap">
-          <div className="course-name">{course.course_name}</div>
-          <div className="course-code">{course.course_code || t("course.current")}</div>
+    <article className={`course-card ${getStatusClass(finishedStatus)}`}>
+      <div className="course-art">
+        <GraduationCap size={31} strokeWidth={1.6} />
+      </div>
+
+      <div className="course-body">
+        <div className="course-heading">
+          <div>
+            <h3>{course.course_name}</h3>
+            <p>{course.course_code || t("course.current")}</p>
+          </div>
+          <StatusBadge value={finishedStatus} t={t} />
         </div>
-        <RiskPill level={course.risk_level} t={t} />
-      </div>
 
-      <div className="course-metrics">
-        <MetricTile label={t("course.earnedPoints")} value={`${formatNumber(course.earned_effective_points ?? course.earned_points)} / ${formatNumber(course.total_points)}`} helper={t("course.realConfirmedPoints")} tone="neutral" />
-        {course.course_finished ? (
-          <MetricTile label={t("course.finalResult")} value={translateStatus(course.course_result, t)} helper={t("course.finalFound")} tone={course.course_result === "passed" ? "success" : "danger"} />
-        ) : (
-          <MetricTile label={t("course.needToPass")} value={formatNumber(course.remaining_to_pass)} helper={`${t("course.passMark")}: ${formatNumber(course.passing_score)}`} tone={Number(course.remaining_to_pass ?? 0) > 0 ? "warning" : "success"} />
-        )}
-        <MetricTile label={t("course.lostPoints")} value={formatNumber(course.lost_points)} helper={t("course.lostPointsHelper")} tone={Number(course.lost_points ?? 0) > 0 ? "danger" : "success"} />
-        <MetricTile label={t("course.available")} value={formatNumber(course.remaining_available_points)} helper={t("course.availableHelper")} tone="success" />
-      </div>
+        <div className="course-key-grid">
+          <div>
+            <span>{t("ui.points")}</span>
+            <strong>
+              {formatNumber(course.earned_effective_points ?? course.earned_points)} /{" "}
+              {formatNumber(course.total_points ?? 100)}
+            </strong>
+          </div>
 
-      <div className="missing-strip">
-        <div className="missing-strip-title">{t("course.pointAudit")}</div>
-        <div className="missing-strip-values">
-          <span>{t("course.published")}: {formatNumber(course.effective_published_points ?? course.published_points)}</span>
+          <div>
+            <span>{t("ui.mark")}</span>
+            <strong>
+              {formatNumber(course.passing_score)} / {formatNumber(course.total_points ?? 100)}
+            </strong>
+          </div>
+
+          <div>
+            <span>{t("ui.result")}</span>
+            <strong>
+              {course.course_finished
+                ? translateStatus(course.course_result, t)
+                : translateStatus(course.risk_level, t)}
+            </strong>
+          </div>
+
+          <div>
+            <span>{t("course.attendance")}</span>
+            <strong className={`attendance-value ${attendanceLevel}`}>{attendance}</strong>
+          </div>
+        </div>
+
+        <ScoreProgress course={course} t={t} />
+
+        <div className="course-mini-grid">
+          <div>
+            <span>{t("course.lostPoints")}</span>
+            <strong>{formatNumber(course.lost_points)}</strong>
+          </div>
+          <div>
+            <span>{t("course.available")}</span>
+            <strong>{formatNumber(course.remaining_available_points)}</strong>
+          </div>
+          <div>
+            <span>{t("course.graded")}</span>
+            <strong>{formatNumber(course.graded_count)}</strong>
+          </div>
+          <div>
+            <span>{t("course.pending")}</span>
+            <strong>{formatNumber(course.pending_grade_count ?? 0)}</strong>
+          </div>
+        </div>
+
+        <ComponentRows components={course.components} t={t} />
+
+        <RecoverySummary recoveryEvents={course.recovery_events} t={t} />
+
+        <div className="course-audit">
+          <span>
+            {t("course.published")}:{" "}
+            {formatNumber(course.effective_published_points ?? course.published_points)}
+          </span>
           <span>{t("course.pending")}: {formatNumber(course.pending_points)}</span>
           <span>{t("course.review")}: {formatNumber(course.hidden_or_review_points)}</span>
           <span>{t("course.unpublishedEst")}: {formatNumber(course.remaining_unpublished_points)}</span>
         </div>
+
+        <p className="course-note">{course.course_finished ? resultText : explanatoryText}</p>
       </div>
-
-      <ScoreBar course={course} t={t} />
-
-      <div className="course-status-row">
-        <MicroStat label={t("course.graded")} value={formatNumber(course.graded_count)} />
-        <MicroStat label={t("course.pending")} value={formatNumber(pendingReviewCount)} tone="warning" />
-        <MicroStat label={t("course.missed")} value={formatNumber(course.missing_count)} tone="danger" />
-        <AttendanceBadge attendance={course.attendance} t={t} />
-      </div>
-
-      <ComponentsSummary components={course.components} />
-      <RecoverySummary recoveryEvents={course.recovery_events} t={t} />
-
-      <div className="risk-reason">{course.course_finished ? resultText : explanatoryText}</div>
-      <div className="risk-reason secondary">{explanatoryText}</div>
-    </div>
+    </article>
   );
 }
 
-function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, t }) {
+function CoursePanel({ courses = [], language, t }) {
+  return (
+    <section className="courses-panel">
+      <div className="section-header">
+        <div>
+          <h2>{t("ui.myCourses")}</h2>
+          <p>{t("course.progress")}</p>
+        </div>
+        <span className="panel-count">{courses.length}</span>
+      </div>
+
+      <div className="course-list">
+        {courses.map((course) => (
+          <CourseCard key={course.course_id} course={course} language={language} t={t} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AssignmentMiniList({ title, items, t, language }) {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <section className="side-panel">
+      <div className="side-panel-header">
+        <div>
+          <h2>{title}</h2>
+          <p>{items.length}</p>
+        </div>
+        <ClipboardList size={20} />
+      </div>
+
+      <div className="upcoming-list">
+        {items.slice(0, 6).map((item, index) => (
+          <a
+            className="upcoming-item"
+            key={`${item.assignment_id || item.assignment_name}-${index}`}
+            href={item.assignment_url || "#"}
+            target={item.assignment_url ? "_blank" : undefined}
+            rel={item.assignment_url ? "noreferrer" : undefined}
+          >
+            <div className="upcoming-date">
+              <span>{formatShortDate(item.due_date_iso, language)}</span>
+            </div>
+
+            <div className="upcoming-copy">
+              <strong>{item.assignment_name}</strong>
+              <span>{item.course_name}</span>
+              <small>
+                {item.due_date_iso
+                  ? formatDateTime(item.due_date_iso, language)
+                  : t("assignment.noDueDate")}
+              </small>
+            </div>
+
+            <StatusBadge value={item.status} t={t} />
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AssignmentsColumn({ groups, t, language }) {
+  const hasAssignments =
+    (groups?.act_now?.length || 0) +
+      (groups?.this_week?.length || 0) +
+      (groups?.next_week?.length || 0) +
+      (groups?.opens_soon?.length || 0) +
+      (groups?.submitted?.length || 0) >
+    0;
+
+  return (
+    <aside className="right-column">
+      <AssignmentMiniList title={t("groups.actNow")} items={groups?.act_now} t={t} language={language} />
+      <AssignmentMiniList title={t("groups.thisWeek")} items={groups?.this_week} t={t} language={language} />
+      <AssignmentMiniList title={t("groups.nextWeek")} items={groups?.next_week} t={t} language={language} />
+      <AssignmentMiniList title={t("groups.opensSoon")} items={groups?.opens_soon} t={t} language={language} />
+      <AssignmentMiniList title={t("groups.submitted")} items={groups?.submitted} t={t} language={language} />
+
+      {!hasAssignments ? (
+        <section className="side-panel">
+          <div className="empty-state">
+            <CheckCircle2 size={24} />
+            <strong>{t("ui.stableTitle")}</strong>
+            <span>{t("ui.stableText")}</span>
+          </div>
+        </section>
+      ) : null}
+    </aside>
+  );
+}
+
+function RemindersStrip({ summary, courses, language, t }) {
+  const atRisk = Number(summary?.courses_at_risk ?? 0);
+  const pending = Number(courses?.reduce((total, course) => total + Number(course.pending_grade_count ?? 0), 0) ?? 0);
+
+  if (atRisk === 0 && pending === 0) {
+    return (
+      <section className="reminders-strip success">
+        <ShieldCheck size={21} />
+        <div>
+          <strong>{t("ui.stableTitle")}</strong>
+          <span>{t("ui.stableText")}</span>
+        </div>
+      </section>
+    );
+  }
+
+  const title = language === "es" ? "Atención académica" : "Academic attention";
+
+  let description = "";
+  if (pending > 0 && atRisk > 0) {
+    description =
+      language === "es"
+        ? `${pending} nota(s) pendiente(s) y ${atRisk} curso(s) en riesgo`
+        : `${pending} pending grade(s) and ${atRisk} course(s) at risk`;
+  } else if (pending > 0) {
+    description =
+      language === "es"
+        ? `${pending} nota(s) pendiente(s) por confirmar`
+        : `${pending} pending grade(s) to confirm`;
+  } else {
+    description =
+      language === "es"
+        ? `${atRisk} curso(s) en riesgo`
+        : `${atRisk} course(s) at risk`;
+  }
+
+  return (
+    <section className="reminders-strip alert">
+      <div className="reminder-summary-icon">
+        {atRisk > 0 ? <AlertTriangle size={20} /> : <FileText size={20} />}
+      </div>
+
+      <div className="reminder-summary-copy">
+        <strong>{title}</strong>
+        <span>{description}</span>
+      </div>
+    </section>
+  );
+}
+
+function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, theme, setTheme, t }) {
   const [accessKey, setAccessKey] = useState("");
+
   const submit = async (event) => {
     event.preventDefault();
     if (!accessKey.trim() || loading) return;
     await onUnlock(accessKey.trim());
   };
+
   return (
     <div className="gate-shell">
-      <div className="gate-layout">
-        <div className="gate-brand-panel">
-          <div className="gate-language-position">
+      <div className="gate-card-wrap">
+        <section className="gate-brand-panel">
+          <div className="gate-top">
+            <BrandLockup compact showSubtitle={false} t={t} />
             <LanguageToggle language={language} onChange={setLanguage} compact />
+            <ThemeToggle theme={theme} onChange={setTheme} compact t={t} />
           </div>
-          <BrandLockup theme="dark" t={t} />
-          <h1>{t("gate.title")}</h1>
-          <p>{t("gate.description")}</p>
-          <div className="gate-brand-points">
-            <div>{t("gate.point.currentTerm")}</div>
-            <div>{t("gate.point.canvasSync")}</div>
-            <div>{t("gate.point.protected")}</div>
+
+          <div className="gate-copy">
+            <h1>{t("gate.title")}</h1>
+            <p>{t("gate.description")}</p>
+
+            <div className="gate-brand-points">
+              <div>
+                <CheckSquare size={18} />
+                {t("gate.point.currentTerm")}
+              </div>
+              <div>
+                <RefreshCw size={18} />
+                {t("gate.point.canvasSync")}
+              </div>
+              <div>
+                <Lock size={18} />
+                {t("gate.point.protected")}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="gate-card">
+        </section>
+
+        <section className="gate-form-card">
           <div className="creator-block">
             <img src={creatorPhoto} alt="Job Villagran" className="creator-avatar" />
             <div className="creator-meta">
-              <span className="creator-label">{t("creator.label")}</span>
-              <a href="https://www.linkedin.com/in/jobvillagran/" target="_blank" rel="noreferrer" className="creator-link">Job Villagran</a>
+              <span className="creator-label">{t("ui.creatorLabel")}</span>
+              <a
+                href="https://www.linkedin.com/in/jobvillagran/"
+                target="_blank"
+                rel="noreferrer"
+                className="creator-link"
+              >
+                Job Villagran
+              </a>
             </div>
           </div>
+
           <div className="gate-title">{t("gate.welcome")}</div>
           <div className="gate-subtitle">{t("gate.subtitle")}</div>
+
           <form onSubmit={submit} className="gate-form">
-            <label className="gate-label" htmlFor="accessKey">{t("gate.accessKey")}</label>
-            <input id="accessKey" type="password" className="gate-input" placeholder={t("gate.placeholder")} value={accessKey} onChange={(e) => setAccessKey(e.target.value)} autoComplete="off" />
+            <label className="gate-label" htmlFor="accessKey">
+              {t("gate.accessKey")}
+            </label>
+            <input
+              id="accessKey"
+              type="password"
+              className="gate-input"
+              placeholder={t("gate.placeholder")}
+              value={accessKey}
+              onChange={(event) => setAccessKey(event.target.value)}
+              autoComplete="off"
+            />
+
             {errorMessage ? <div className="gate-error">{errorMessage}</div> : null}
-            <button type="submit" className="gate-button" disabled={loading}>{loading ? t("gate.validating") : t("gate.unlock")}</button>
+
+            <button type="submit" className="gate-button" disabled={loading}>
+              {loading ? t("gate.validating") : t("gate.unlock")}
+            </button>
           </form>
-        </div>
+        </section>
       </div>
     </div>
   );
@@ -385,10 +766,12 @@ function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, t 
 
 export default function App() {
   const [language, setLanguageState] = useState(getInitialLanguage);
+  const [theme, setThemeState] = useState(getInitialTheme);
   const t = useMemo(() => createTranslator(language), [language]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState(0);
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -398,13 +781,24 @@ export default function App() {
     saveLanguage(nextLanguage);
   };
 
+  const setTheme = (nextTheme) => {
+    const normalizedTheme = normalizeTheme(nextTheme);
+    setThemeState(normalizedTheme);
+    saveTheme(normalizedTheme);
+  };
+
   useEffect(() => {
     document.documentElement.lang = language;
   }, [language]);
 
   useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  useEffect(() => {
     const existingKey = getStoredAccessKey();
     if (!existingKey) return;
+
     const bootstrap = async () => {
       try {
         setLoading(true);
@@ -422,14 +816,34 @@ export default function App() {
         setLoading(false);
       }
     };
+
     bootstrap();
   }, [t]);
+
+  useEffect(() => {
+    if (!refreshing) return;
+
+    setRefreshProgress(8);
+
+    const interval = window.setInterval(() => {
+      setRefreshProgress((current) => {
+        if (current >= 92) return current;
+        const distance = 92 - current;
+        const step = Math.max(1, Math.round(distance * 0.12));
+        return Math.min(92, current + step);
+      });
+    }, 220);
+
+    return () => window.clearInterval(interval);
+  }, [refreshing]);
 
   const load = async (force = false) => {
     try {
       setError("");
+
       if (force) setRefreshing(true);
       else setLoading(true);
+
       const payload = force ? await refreshDashboard() : await getDashboard(false);
       setData(payload);
     } catch (err) {
@@ -443,7 +857,17 @@ export default function App() {
       }
     } finally {
       setLoading(false);
-      setRefreshing(false);
+
+      if (force) {
+        setRefreshProgress(100);
+
+        window.setTimeout(() => {
+          setRefreshing(false);
+          setRefreshProgress(0);
+        }, 450);
+      } else {
+        setRefreshing(false);
+      }
     }
   };
 
@@ -452,6 +876,7 @@ export default function App() {
       setLoading(true);
       setAuthError("");
       setError("");
+
       const payload = await validateAccessKey(key);
       storeAccessKey(key);
       setData(payload);
@@ -475,53 +900,71 @@ export default function App() {
   };
 
   if (!isUnlocked) {
-    return <AccessGate onUnlock={unlock} errorMessage={authError} loading={loading} language={language} setLanguage={setLanguage} t={t} />;
+    return (
+      <AccessGate
+        onUnlock={unlock}
+        errorMessage={authError}
+        loading={loading}
+        language={language}
+        setLanguage={setLanguage}
+        theme={theme}
+        setTheme={setTheme}
+        t={t}
+      />
+    );
   }
 
-  if (loading && !data) return <div className="screen-state">{t("screen.loading")}</div>;
+  if (loading && !data) {
+    return <div className="screen-state">{t("screen.loading")}</div>;
+  }
 
   return (
-    <div className="app-shell">
-      <header className="hero">
-        <div className="hero-main"><BrandLockup compact theme="light" showSubtitle={false} t={t} /></div>
-        <div className="hero-actions">
-          <LanguageToggle language={language} onChange={setLanguage} />
-          <button className="refresh-btn" onClick={() => load(true)} disabled={refreshing}>{refreshing ? t("actions.refreshing") : t("actions.refresh")}</button>
-          <button className="logout-btn" onClick={logout}>{t("actions.lock")}</button>
+    <>
+    {refreshing ? <RefreshOverlay progress={refreshProgress} t={t} /> : null}
+
+    <div className="dashboard-page">
+      <main className="dashboard-main">
+        <header className="topbar">
+          <div className="topbar-brand">
+            <BrandLockup compact showSubtitle={false} t={t} />
+          </div>
+
+          <div className="topbar-actions">
+            <SyncChip sync={data?.sync} language={language} t={t} />
+            <LanguageToggle language={language} onChange={setLanguage} />
+            <ThemeToggle theme={theme} onChange={setTheme} t={t} />
+
+            <button className="toolbar-button primary" onClick={() => load(true)} disabled={refreshing}>
+              <RefreshCw size={18} />
+              <span>{refreshing ? t("actions.refreshing") : t("actions.refresh")}</span>
+            </button>
+
+            <button className="toolbar-button" onClick={logout}>
+              <Lock size={17} />
+              <span>{t("actions.lock")}</span>
+            </button>
+          </div>
+        </header>
+
+        <section className="page-intro">
+          <div>
+            <h1>{t("ui.overviewTitle")}</h1>
+            <p>{t("ui.overviewSubtitle")}</p>
+          </div>
+
+          <RemindersStrip summary={data?.summary} courses={data?.courses || []} language={language} t={t} />
+        </section>
+
+        {error ? <div className="error-banner">{error}</div> : null}
+
+        <StatsOverview summary={data?.summary} t={t} />
+
+        <div className="dashboard-content">
+          <CoursePanel courses={data?.courses || []} language={language} t={t} />
+          <AssignmentsColumn groups={data?.groups} language={language} t={t} />
         </div>
-      </header>
-
-      <SyncBanner sync={data?.sync} t={t} language={language} />
-      {error ? <div className="error-banner">{error}</div> : null}
-
-      <section className="stats-grid">
-        <StatCard label={t("stats.actionable")} value={data?.summary?.actionable ?? 0} />
-        <StatCard label={t("stats.urgent")} value={data?.summary?.urgent ?? 0} tone="danger" />
-        <StatCard label={t("stats.opensSoon")} value={data?.summary?.opens_soon ?? 0} tone="indigo" />
-        <StatCard label={t("stats.projects")} value={data?.summary?.projects ?? 0} tone="amber" />
-        <StatCard label={t("stats.submitted")} value={data?.summary?.submitted ?? 0} tone="green" />
-        <StatCard label={t("stats.atRisk")} value={data?.summary?.courses_at_risk ?? 0} tone="danger" />
-        <StatCard label={t("stats.watch")} value={data?.summary?.courses_watch ?? 0} tone="amber" />
-        <StatCard label={t("stats.incomplete")} value={data?.summary?.courses_not_enough_data ?? 0} tone="neutral" />
-      </section>
-
-      <AssignmentList title={t("groups.actNow")} items={data?.groups?.act_now} t={t} language={language} />
-      <AssignmentList title={t("groups.thisWeek")} items={data?.groups?.this_week} t={t} language={language} />
-      <AssignmentList title={t("groups.nextWeek")} items={data?.groups?.next_week} t={t} language={language} />
-      <AssignmentList title={t("groups.thirdWeek")} items={data?.groups?.third_week} t={t} language={language} />
-      <AssignmentList title={t("groups.opensSoon")} items={data?.groups?.opens_soon} t={t} language={language} />
-      <AssignmentList title={t("groups.submitted")} items={data?.groups?.submitted} t={t} language={language} />
-      <AssignmentList title={t("groups.noDueDate")} items={data?.groups?.no_due_date} t={t} language={language} />
-
-      <section className="panel panel-strong">
-        <div className="panel-header">
-          <h2>{t("course.progress")}</h2>
-          <span className="panel-count">{data?.courses?.length ?? 0}</span>
-        </div>
-        <div className="course-grid">
-          {data?.courses?.map((course) => <CourseCard key={course.course_id} course={course} t={t} />)}
-        </div>
-      </section>
+      </main>
     </div>
-  );
+  </>
+);
 }

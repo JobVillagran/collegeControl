@@ -21,6 +21,36 @@ const DICTIONARY = {
 
     "creator.label": "Created by",
 
+    "ui.overviewTitle": "Academic overview",
+    "ui.overviewSubtitle": "Here is what matters most in your courses today.",
+    "ui.myCourses": "My Courses",
+    "ui.upcomingWork": "Upcoming work",
+    "ui.stableTitle": "Everything looks stable",
+    "ui.stableText": "No urgent assignment or course alert was found.",
+    "ui.compactSync": "Synced",
+    "ui.points": "Points",
+    "ui.mark": "Pass mark",
+    "ui.result": "Result",
+    "ui.creatorLabel": "Created by",
+    "ui.refreshTitle": "Refreshing your courses",
+    "ui.refreshSubtitle": "We are syncing Canvas and recalculating your points.",
+
+    "theme.light": "Light",
+    "theme.dark": "Dark",
+    "theme.switchToLight": "Switch to light mode",
+    "theme.switchToDark": "Switch to dark mode",
+
+    "components.partial_1": "First partial",
+    "components.partial_2": "Second partial",
+    "components.final_exam": "Final exam",
+    "components.recovery_exam": "Recovery exam",
+    "components.final_project": "Final project",
+    "components.project": "Projects",
+    "components.task": "Assignments",
+    "components.exam": "Exams",
+    "components.attendance": "Attendance",
+    "components.other": "Other",
+
     "gate.title": "Secure academic workspace",
     "gate.description":
       "Enter your private access key to open your personal university dashboard, refresh tasks, and review course progress securely.",
@@ -152,6 +182,36 @@ const DICTIONARY = {
     "brand.subtitle": "Espacio académico seguro",
 
     "creator.label": "Creado por",
+
+    "ui.overviewTitle": "Resumen académico",
+    "ui.overviewSubtitle": "Esto es lo más importante de tus cursos hoy.",
+    "ui.myCourses": "Mis cursos",
+    "ui.upcomingWork": "Próximas entregas",
+    "ui.stableTitle": "Todo se ve estable",
+    "ui.stableText": "No se encontró una alerta urgente de tarea o curso.",
+    "ui.compactSync": "Sincronizado",
+    "ui.points": "Puntos",
+    "ui.mark": "Mínimo",
+    "ui.result": "Resultado",
+    "ui.creatorLabel": "Creado por",
+    "ui.refreshTitle": "Actualizando tus cursos",
+    "ui.refreshSubtitle": "Estamos consultando Canvas y recalculando tus puntos.",
+
+    "theme.light": "Claro",
+    "theme.dark": "Oscuro",
+    "theme.switchToLight": "Cambiar a modo claro",
+    "theme.switchToDark": "Cambiar a modo oscuro",
+
+    "components.partial_1": "Primer parcial",
+    "components.partial_2": "Segundo parcial",
+    "components.final_exam": "Examen final",
+    "components.recovery_exam": "Examen recuperación",
+    "components.final_project": "Proyecto final",
+    "components.project": "Proyectos",
+    "components.task": "Tareas",
+    "components.exam": "Exámenes",
+    "components.attendance": "Asistencia",
+    "components.other": "Otros",
 
     "gate.title": "Espacio académico seguro",
     "gate.description":
@@ -359,6 +419,13 @@ export function translateStatus(value, t) {
     {},
     normalized.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase())
   );
+}
+
+export function translateComponent(component, t) {
+  if (!component) return "";
+
+  const type = String(component.type || component.label || "other").trim().toLowerCase();
+  return t(`components.${type}`, {}, component.label || type);
 }
 
 export function translateSyncMessage(message, t) {
