@@ -694,11 +694,14 @@ function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, th
         <section className="gate-brand-panel">
           <div className="gate-top">
             <BrandLockup compact showSubtitle={false} t={t} />
-            <LanguageToggle language={language} onChange={setLanguage} compact />
-            <ThemeToggle theme={theme} onChange={setTheme} compact t={t} />
+
+            <div className="gate-top-actions">
+              <LanguageToggle language={language} onChange={setLanguage} compact />
+              <ThemeToggle theme={theme} onChange={setTheme} compact t={t} />
+            </div>
           </div>
 
-          <div className="gate-copy">
+          <div className="gate-copy desktop-gate-copy">
             <h1>{t("gate.title")}</h1>
             <p>{t("gate.description")}</p>
 
@@ -717,10 +720,15 @@ function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, th
               </div>
             </div>
           </div>
+
+          <div className="gate-mobile-hero">
+            <h1>{t("gate.mobileTitle")}</h1>
+            <p>{t("gate.mobileSubtitle")}</p>
+          </div>
         </section>
 
         <section className="gate-form-card">
-          <div className="creator-block">
+          <div className="creator-block desktop-creator-block">
             <img src={creatorPhoto} alt="Job Villagran" className="creator-avatar" />
             <div className="creator-meta">
               <span className="creator-label">{t("ui.creatorLabel")}</span>
@@ -742,6 +750,7 @@ function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, th
             <label className="gate-label" htmlFor="accessKey">
               {t("gate.accessKey")}
             </label>
+
             <input
               id="accessKey"
               type="password"
@@ -757,6 +766,19 @@ function AccessGate({ onUnlock, errorMessage, loading, language, setLanguage, th
             <button type="submit" className="gate-button" disabled={loading}>
               {loading ? t("gate.validating") : t("gate.unlock")}
             </button>
+
+            <div className="gate-mobile-security">
+              <Lock size={15} />
+              <span>{t("gate.mobileSecureNote")}</span>
+            </div>
+
+            <div className="mobile-creator-credit">
+              <img src={creatorPhoto} alt="Job Villagran" />
+              <div>
+                <span>{t("ui.creatorLabel")}</span>
+                <strong>Job Villagran</strong>
+              </div>
+            </div>
           </form>
         </section>
       </div>
