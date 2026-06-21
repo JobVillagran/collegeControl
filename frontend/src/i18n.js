@@ -51,13 +51,13 @@ const DICTIONARY = {
     "components.attendance": "Attendance",
     "components.other": "Other",
 
-    "gate.title": "Secure academic workspace",
+    "gate.title": "Academic workspace",
     "gate.description":
       "Enter your private access key to open your personal university dashboard, refresh tasks, and review course progress securely.",
     "gate.point.currentTerm": "Current-term courses only",
     "gate.point.canvasSync": "Canvas-backed live sync",
     "gate.point.protected": "Protected refresh and dashboard access",
-    "gate.welcome": "Welcome back",
+    "gate.welcome": "Welcome",
     "gate.subtitle": "Enter your private access key to continue.",
     "gate.accessKey": "Access key",
     "gate.placeholder": "Enter access key",
@@ -213,13 +213,13 @@ const DICTIONARY = {
     "components.attendance": "Asistencia",
     "components.other": "Otros",
 
-    "gate.title": "Espacio académico seguro",
+    "gate.title": "Espacio académico",
     "gate.description":
       "Ingresa tu llave privada para abrir tu dashboard universitario, actualizar tareas y revisar tu progreso académico de forma segura.",
     "gate.point.currentTerm": "Solo cursos del semestre actual",
     "gate.point.canvasSync": "Sincronización en vivo con Canvas",
     "gate.point.protected": "Acceso protegido al dashboard y actualización",
-    "gate.welcome": "Bienvenido de vuelta",
+    "gate.welcome": "Bienvenido",
     "gate.subtitle": "Ingresa tu llave privada para continuar.",
     "gate.accessKey": "Llave de acceso",
     "gate.placeholder": "Ingresa la llave de acceso",
