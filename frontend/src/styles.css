@@ -1748,3 +1748,150 @@ a,
     transition-duration: 0.001ms !important;
   }
 }
+.component-summary,
+.recovery-summary {
+  margin-top: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.86);
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.component-row,
+.recovery-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.component-row strong,
+.recovery-row strong {
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.recovery-summary {
+  background: #f8fbff;
+  border-color: #dbeafe;
+}
+
+.recovery-title {
+  font-size: 0.78rem;
+  color: #1d4ed8;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.attendance-box {
+  border-radius: 14px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f8fafc;
+}
+
+.attendance-box.success {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.attendance-box.warning {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.attendance-box.danger {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.attendance-label {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.attendance-value {
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.risk-reason.secondary {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .stat-card {
+    min-height: 116px !important;
+    padding: 14px !important;
+    border-radius: 20px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+
+  .stat-label {
+    font-size: 0.72rem !important;
+    line-height: 1.15 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .stat-value {
+    margin-top: 8px !important;
+    font-size: 1.85rem !important;
+    line-height: 1 !important;
+  }
+
+  .course-metrics,
+  .course-status-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .component-row,
+  .recovery-row {
+    align-items: flex-start;
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 9px !important;
+  }
+
+  .stat-card {
+    min-height: 108px !important;
+    padding: 13px !important;
+    border-radius: 18px !important;
+  }
+
+  .stat-label {
+    font-size: 0.68rem !important;
+  }
+
+  .stat-value {
+    font-size: 1.7rem !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
