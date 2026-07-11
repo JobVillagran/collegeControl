@@ -33,7 +33,14 @@ const DICTIONARY = {
     "ui.result": "Result",
     "ui.creatorLabel": "Created by",
     "ui.refreshTitle": "Refreshing your courses",
-    "ui.refreshSubtitle": "We are syncing Canvas and recalculating your points.",
+    "ui.refreshSubtitle":
+      "We are syncing Canvas and recalculating your points.",
+    "ui.validatingTitle": "Unlocking your workspace",
+    "ui.validatingSubtitle":
+      "Checking your private access key and preparing your dashboard.",
+    "ui.loadingTitle": "Loading your dashboard",
+    "ui.loadingSubtitle":
+      "Bringing your latest academic data into view.",
 
     "theme.light": "Light",
     "theme.dark": "Dark",
@@ -55,7 +62,8 @@ const DICTIONARY = {
     "gate.description":
       "Enter your private access key to open your personal university dashboard, refresh tasks, and review course progress securely.",
     "gate.mobileTitle": "Secure academic access",
-    "gate.mobileSubtitle": "Enter your key to view courses, grades, and pending work.",
+    "gate.mobileSubtitle":
+      "Enter your key to view courses, grades, and pending work.",
     "gate.mobileSecureNote": "Protected student workspace",
     "gate.point.currentTerm": "Current-term courses only",
     "gate.point.canvasSync": "Canvas-backed live sync",
@@ -78,7 +86,8 @@ const DICTIONARY = {
 
     "screen.loading": "Loading dashboard...",
 
-    "error.savedKeyInvalid": "Your saved key is no longer valid. Please enter it again.",
+    "error.savedKeyInvalid":
+      "Your saved key is no longer valid. Please enter it again.",
     "error.invalidKey": "Invalid access key.",
     "error.invalidKeyRetry": "Invalid access key. Please try again.",
     "error.dashboardLoad": "Failed to load dashboard.",
@@ -139,6 +148,8 @@ const DICTIONARY = {
     "course.recoveryRule": "Recovery rule",
     "course.applied": "Applied",
     "course.notApplied": "Not applied",
+    "course.viewDetails": "View details",
+    "course.hideDetails": "Hide details",
     "course.finishedPassed":
       "Course finished. You passed with {earned} point(s). The passing mark is {passing}.",
     "course.finishedFailed":
@@ -146,11 +157,15 @@ const DICTIONARY = {
     "course.expl.realPoints": "Real points: {earned} / {total}.",
     "course.expl.published": "Effective published points: {published}.",
     "course.expl.lost": "{points} point(s) are already lost.",
-    "course.expl.pending": "{points} point(s) are submitted but pending grade.",
+    "course.expl.pending":
+      "{points} point(s) are submitted but pending grade.",
     "course.expl.open": "{points} point(s) are still open.",
-    "course.expl.review": "{points} point(s) need manual/detail review.",
-    "course.expl.unpublished": "{points} point(s) are estimated as not published yet.",
-    "course.expl.need": "Need {points} more point(s) to reach {passing}.",
+    "course.expl.review":
+      "{points} point(s) need manual/detail review.",
+    "course.expl.unpublished":
+      "{points} point(s) are estimated as not published yet.",
+    "course.expl.need":
+      "Need {points} more point(s) to reach {passing}.",
     "course.expl.required": "Required from remaining: {percent}%.",
 
     "status.info": "Info",
@@ -187,18 +202,27 @@ const DICTIONARY = {
     "creator.label": "Creado por",
 
     "ui.overviewTitle": "Resumen académico",
-    "ui.overviewSubtitle": "Esto es lo más importante de tus cursos hoy.",
+    "ui.overviewSubtitle":
+      "Esto es lo más importante de tus cursos hoy.",
     "ui.myCourses": "Mis cursos",
     "ui.upcomingWork": "Próximas entregas",
     "ui.stableTitle": "Todo se ve estable",
-    "ui.stableText": "No se encontró una alerta urgente de tarea o curso.",
+    "ui.stableText":
+      "No se encontró una alerta urgente de tarea o curso.",
     "ui.compactSync": "Sincronizado",
     "ui.points": "Puntos",
     "ui.mark": "Mínimo",
     "ui.result": "Resultado",
     "ui.creatorLabel": "Creado por",
     "ui.refreshTitle": "Actualizando tus cursos",
-    "ui.refreshSubtitle": "Estamos consultando Canvas y recalculando tus puntos.",
+    "ui.refreshSubtitle":
+      "Estamos consultando Canvas y recalculando tus puntos.",
+    "ui.validatingTitle": "Abriendo tu espacio",
+    "ui.validatingSubtitle":
+      "Estamos validando tu llave privada y preparando el dashboard.",
+    "ui.loadingTitle": "Cargando tu dashboard",
+    "ui.loadingSubtitle":
+      "Estamos trayendo tu información académica más reciente.",
 
     "theme.light": "Claro",
     "theme.dark": "Oscuro",
@@ -220,11 +244,13 @@ const DICTIONARY = {
     "gate.description":
       "Ingresa tu llave privada para abrir tu dashboard universitario, actualizar tareas y revisar tu progreso académico de forma segura.",
     "gate.mobileTitle": "Acceso académico seguro",
-    "gate.mobileSubtitle": "Ingresa tu llave para ver cursos, notas y pendientes.",
+    "gate.mobileSubtitle":
+      "Ingresa tu llave para ver cursos, notas y pendientes.",
     "gate.mobileSecureNote": "Espacio estudiantil protegido",
     "gate.point.currentTerm": "Solo cursos del semestre actual",
     "gate.point.canvasSync": "Sincronización en vivo con Canvas",
-    "gate.point.protected": "Acceso protegido al dashboard y actualización",
+    "gate.point.protected":
+      "Acceso protegido al dashboard y actualización",
     "gate.welcome": "Bienvenido",
     "gate.subtitle": "Ingresa tu llave privada para continuar.",
     "gate.accessKey": "Llave de acceso",
@@ -243,9 +269,11 @@ const DICTIONARY = {
 
     "screen.loading": "Cargando dashboard...",
 
-    "error.savedKeyInvalid": "Tu llave guardada ya no es válida. Ingrésala nuevamente.",
+    "error.savedKeyInvalid":
+      "Tu llave guardada ya no es válida. Ingrésala nuevamente.",
     "error.invalidKey": "Llave de acceso inválida.",
-    "error.invalidKeyRetry": "Llave de acceso inválida. Intenta nuevamente.",
+    "error.invalidKeyRetry":
+      "Llave de acceso inválida. Intenta nuevamente.",
     "error.dashboardLoad": "No se pudo cargar el dashboard.",
 
     "sync.healthy": "Sincronización correcta",
@@ -274,23 +302,29 @@ const DICTIONARY = {
 
     "assignment.due": "Entrega",
     "assignment.noDueDate": "Sin fecha de entrega",
-    "assignment.submittedWaiting": "Entregada • esperando calificación",
-    "assignment.urgency.actNow": "Acciona ahora • faltan {hours}h",
+    "assignment.submittedWaiting":
+      "Entregada • esperando calificación",
+    "assignment.urgency.actNow":
+      "Acciona ahora • faltan {hours}h",
     "assignment.urgency.soon": "Pronto • faltan {hours}h",
-    "assignment.urgency.upcoming": "Próxima • faltan {hours}h",
+    "assignment.urgency.upcoming":
+      "Próxima • faltan {hours}h",
 
     "course.current": "Curso actual",
     "course.progress": "Progreso de cursos",
     "course.earnedPoints": "Puntos ganados",
     "course.realConfirmedPoints": "Puntos reales confirmados",
     "course.finalResult": "Resultado final",
-    "course.finalFound": "Nota final/recuperación encontrada",
+    "course.finalFound":
+      "Nota final/recuperación encontrada",
     "course.needToPass": "Faltan para ganar",
     "course.passMark": "Mínimo para ganar",
     "course.lostPoints": "Puntos perdidos",
-    "course.lostPointsHelper": "Faltantes + puntos perdidos en notas",
+    "course.lostPointsHelper":
+      "Faltantes + puntos perdidos en notas",
     "course.available": "Disponibles",
-    "course.availableHelper": "Abiertos + pendientes + no publicados",
+    "course.availableHelper":
+      "Abiertos + pendientes + no publicados",
     "course.pointAudit": "Auditoría de puntos",
     "course.published": "Publicados",
     "course.pending": "Pendientes",
@@ -304,19 +338,30 @@ const DICTIONARY = {
     "course.recoveryRule": "Regla de recuperación",
     "course.applied": "Aplicada",
     "course.notApplied": "No aplicada",
+    "course.viewDetails": "Ver detalles",
+    "course.hideDetails": "Ocultar detalles",
     "course.finishedPassed":
       "Curso finalizado. Ganaste con {earned} punto(s). El mínimo para ganar es {passing}.",
     "course.finishedFailed":
       "Curso finalizado. No llegaste al mínimo para ganar. Total confirmado actual: {earned}/{total}; mínimo requerido: {passing}.",
-    "course.expl.realPoints": "Puntos reales: {earned} / {total}.",
-    "course.expl.published": "Puntos publicados efectivos: {published}.",
-    "course.expl.lost": "{points} punto(s) ya están perdidos.",
-    "course.expl.pending": "{points} punto(s) fueron entregados pero siguen pendientes de nota.",
-    "course.expl.open": "{points} punto(s) siguen abiertos.",
-    "course.expl.review": "{points} punto(s) necesitan revisión manual/detalle.",
-    "course.expl.unpublished": "{points} punto(s) se estiman como no publicados todavía.",
-    "course.expl.need": "Necesitas {points} punto(s) más para llegar a {passing}.",
-    "course.expl.required": "Requerido sobre lo restante: {percent}%.",
+    "course.expl.realPoints":
+      "Puntos reales: {earned} / {total}.",
+    "course.expl.published":
+      "Puntos publicados efectivos: {published}.",
+    "course.expl.lost":
+      "{points} punto(s) ya están perdidos.",
+    "course.expl.pending":
+      "{points} punto(s) fueron entregados pero siguen pendientes de nota.",
+    "course.expl.open":
+      "{points} punto(s) siguen abiertos.",
+    "course.expl.review":
+      "{points} punto(s) necesitan revisión manual/detalle.",
+    "course.expl.unpublished":
+      "{points} punto(s) se estiman como no publicados todavía.",
+    "course.expl.need":
+      "Necesitas {points} punto(s) más para llegar a {passing}.",
+    "course.expl.required":
+      "Requerido sobre lo restante: {percent}%.",
 
     "status.info": "Info",
     "status.not_enabled_yet": "No habilitada todavía",
@@ -359,13 +404,16 @@ function writeStorage(key, value) {
   try {
     localStorage.setItem(key, value);
   } catch {
-    // ignore
+    // Ignore storage errors.
   }
 }
 
 function interpolate(template, params = {}) {
   return String(template).replace(/\{(\w+)\}/g, (_, key) => {
-    if (params[key] === undefined || params[key] === null) return `{${key}}`;
+    if (params[key] === undefined || params[key] === null) {
+      return `{${key}}`;
+    }
+
     return String(params[key]);
   });
 }
@@ -380,29 +428,48 @@ function humanizeKey(key) {
 }
 
 export function normalizeLanguage(value) {
-  return Object.keys(LANGUAGES).includes(value) ? value : DEFAULT_LANGUAGE;
+  return Object.keys(LANGUAGES).includes(value)
+    ? value
+    : DEFAULT_LANGUAGE;
 }
 
 export function getInitialLanguage() {
   const stored = readStorage(LANGUAGE_STORAGE_KEY);
-  if (stored) return normalizeLanguage(stored);
 
-  const browserLanguage = navigator.language?.toLowerCase() || "";
-  if (browserLanguage.startsWith("en")) return "en";
+  if (stored) {
+    return normalizeLanguage(stored);
+  }
+
+  const browserLanguage =
+    navigator.language?.toLowerCase() || "";
+
+  if (browserLanguage.startsWith("en")) {
+    return "en";
+  }
 
   return DEFAULT_LANGUAGE;
 }
 
 export function saveLanguage(language) {
-  writeStorage(LANGUAGE_STORAGE_KEY, normalizeLanguage(language));
+  writeStorage(
+    LANGUAGE_STORAGE_KEY,
+    normalizeLanguage(language)
+  );
 }
 
 export function createTranslator(language) {
   const currentLanguage = normalizeLanguage(language);
 
-  return function translate(key, params = {}, fallback = null) {
-    const currentDictionary = DICTIONARY[currentLanguage] || {};
-    const defaultDictionary = DICTIONARY[DEFAULT_LANGUAGE] || {};
+  return function translate(
+    key,
+    params = {},
+    fallback = null
+  ) {
+    const currentDictionary =
+      DICTIONARY[currentLanguage] || {};
+
+    const defaultDictionary =
+      DICTIONARY[DEFAULT_LANGUAGE] || {};
 
     const value =
       currentDictionary[key] ??
@@ -416,41 +483,72 @@ export function createTranslator(language) {
 }
 
 export function translateStatus(value, t) {
-  if (!value) return t("status.info");
+  if (!value) {
+    return t("status.info");
+  }
 
-  const normalized = String(value).trim().toLowerCase();
+  const normalized = String(value)
+    .trim()
+    .toLowerCase();
 
   return t(
     `status.${normalized}`,
     {},
-    normalized.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase())
+    normalized
+      .replaceAll("_", " ")
+      .replace(/\b\w/g, (char) => char.toUpperCase())
   );
 }
 
 export function translateComponent(component, t) {
-  if (!component) return "";
+  if (!component) {
+    return "";
+  }
 
-  const type = String(component.type || component.label || "other").trim().toLowerCase();
-  return t(`components.${type}`, {}, component.label || type);
+  const type = String(
+    component.type ||
+      component.label ||
+      "other"
+  )
+    .trim()
+    .toLowerCase();
+
+  return t(
+    `components.${type}`,
+    {},
+    component.label || type
+  );
 }
 
 export function translateSyncMessage(message, t) {
-  if (!message) return "";
+  if (!message) {
+    return "";
+  }
 
-  const normalized = String(message).trim().toLowerCase();
+  const normalized = String(message)
+    .trim()
+    .toLowerCase();
 
   const knownMessages = {
-    "live data loaded successfully.": "sync.message.loaded",
-    "live data loaded successfully": "sync.message.loaded",
-    "cached data loaded.": "sync.message.cached",
-    "cached data loaded": "sync.message.cached",
-    "refreshing canvas data...": "sync.message.refreshing",
-    "refreshing canvas data": "sync.message.refreshing",
+    "live data loaded successfully.":
+      "sync.message.loaded",
+    "live data loaded successfully":
+      "sync.message.loaded",
+    "cached data loaded.":
+      "sync.message.cached",
+    "cached data loaded":
+      "sync.message.cached",
+    "refreshing canvas data...":
+      "sync.message.refreshing",
+    "refreshing canvas data":
+      "sync.message.refreshing",
   };
 
   const key = knownMessages[normalized];
 
-  if (key) return t(key);
+  if (key) {
+    return t(key);
+  }
 
   return message;
 }
