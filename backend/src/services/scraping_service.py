@@ -44,6 +44,7 @@ class ScrapingService:
                 course_url=course["course_url"],
             )
             normalized = []
+
             for assignment in raw_assignments:
                 assignment = self._merge_grade_page_data(assignment, grade_page_payload)
                 item = self._normalize_assignment_status(assignment)
@@ -98,7 +99,6 @@ class ScrapingService:
             assignment_groups_by_course[course["course_id"]] = groups
 
         return assignment_groups_by_course
-
 
     def _recover_grade_from_submission_detail(self, course: dict, assignment: dict) -> dict:
         item = dict(assignment)
@@ -208,30 +208,83 @@ class ScrapingService:
         return list(by_id.values())
 
     def _filter_current_term_courses(self, courses: list[dict]) -> list[dict]:
-        tagged: list[tuple[tuple[int, int], dict]] = []
+        """
+        Goal:
+        Keep only courses from the current semester.
 
-        for course in courses:
+        Priority:
+        1. Use semester/year inferred from course_name/course_code
+        2. If that fails, use Canvas term.id
+        3. If that fails, use available courses only
+        """
+        available_courses = [
+            course for course in courses
+            if (course.get("workflow_state") or "").lower() in {"available", "unpublished", "completed"}
+        ]
+
+        if not available_courses:
+            return courses
+
+        # 1) Best source for your case: infer semester/year from course code or name
+        tagged_by_regex: list[tuple[tuple[int, int], dict]] = []
+        for course in available_courses:
             key = self._extract_term_key(course)
             if key:
-                tagged.append((key, course))
+                tagged_by_regex.append((key, course))
 
-        if not tagged:
-            return [course for course in courses if (course.get("workflow_state") or "").lower() == "available"]
+        if tagged_by_regex:
+            latest_key = max(term_key for term_key, _ in tagged_by_regex)
+            regex_filtered = [course for term_key, course in tagged_by_regex if term_key == latest_key]
+            if regex_filtered:
+                return regex_filtered
 
-        latest = max(term_key for term_key, _ in tagged)
-        return [course for term_key, course in tagged if term_key == latest]
+        # 2) Fallback: use Canvas term.id groups
+        buckets_by_term_id: dict[str, list[dict]] = {}
+        for course in available_courses:
+            term = course.get("term") or {}
+            term_id = term.get("id")
+            if term_id is not None:
+                buckets_by_term_id.setdefault(str(term_id), []).append(course)
+
+        if buckets_by_term_id:
+            # Prefer the group with the most recent course dates, then largest size
+            ranked = []
+            for term_id, grouped_courses in buckets_by_term_id.items():
+                ranked.append(
+                    (
+                        self._best_course_date_key(grouped_courses),
+                        len(grouped_courses),
+                        term_id,
+                        grouped_courses,
+                    )
+                )
+            ranked.sort(reverse=True)
+            return ranked[0][3]
+
+        # 3) Final fallback
+        return available_courses
+
+    def _best_course_date_key(self, grouped_courses: list[dict]) -> str:
+        values = []
+        for course in grouped_courses:
+            for value in [course.get("start_at"), course.get("end_at")]:
+                if value:
+                    values.append(str(value))
+        return max(values) if values else ""
 
     def _extract_term_key(self, course: dict) -> Optional[tuple[int, int]]:
+        """
+        Returns (year, semester)
+        Example:
+        12026-1900-032-B -> (2026, 1)
+        22026-1900-038-A -> (2026, 2)
+        """
         for text in [course.get("course_name") or "", course.get("course_code") or ""]:
             match = self.TERM_PATTERN.search(text)
             if match:
-                return (int(match.group(2)), int(match.group(1)))
-
-        term = course.get("term") or {}
-        term_name = term.get("name") or ""
-        match = self.TERM_PATTERN.search(term_name)
-        if match:
-            return (int(match.group(2)), int(match.group(1)))
+                semester = int(match.group(1))
+                year = int(match.group(2))
+                return (year, semester)
 
         return None
 
@@ -278,18 +331,17 @@ class ScrapingService:
             )
         )
         a["is_late"] = late
-        a["needs_detail_check"] = self._should_deep_check(a)
 
-        if a["is_graded"]:
-            a["status"] = "graded"
+        if not published:
+            a["status"] = "hidden"
         elif a["is_missing"]:
             a["status"] = "missing"
+        elif a["is_graded"]:
+            a["status"] = "graded"
         elif a["is_submitted_pending"]:
             a["status"] = "submitted_pending"
         elif a["is_submitted"]:
             a["status"] = "submitted"
-        elif not published:
-            a["status"] = "hidden"
         elif a["is_future_locked"] or locked_for_user:
             a["status"] = "not_enabled_yet"
         elif a["is_due_future"]:
@@ -305,52 +357,40 @@ class ScrapingService:
 
         return a
 
-    def _should_deep_check(self, assignment: dict) -> bool:
-        assignment_id = assignment.get("assignment_id")
-        if not assignment_id:
+    def _should_deep_check(self, item: dict) -> bool:
+        if item.get("is_graded"):
             return False
-        if assignment.get("score") is not None:
+        if item.get("is_missing"):
             return False
-        if assignment.get("max_score") is None:
+        if item.get("status") == "hidden":
             return False
-        status = assignment.get("status")
-        return bool(
-            assignment.get("submitted_at")
-            or assignment.get("locked_for_user")
-            or assignment.get("muted")
-            or assignment.get("grade_page_assignment_found")
-            or status in {"hidden", "closed", "submitted", "submitted_pending", "expired"}
-        )
+        if item.get("assignment_id") is None:
+            return False
+        return True
 
     def _filter_dashboard_assignments(self, assignments: list[dict]) -> list[dict]:
         now = datetime.now(timezone.utc)
         results = []
 
-        for a in assignments:
-            if a.get("is_attendance"):
+        for item in assignments:
+            due_at = self._parse_dt(item.get("due_date_iso"))
+
+            if due_at and due_at <= now and not item.get("is_submitted_pending"):
                 continue
 
-            due_at = self._parse_dt(a.get("due_date_iso"))
-            status = a.get("status")
-
-            if due_at and due_at <= now:
-                continue
-            if status in {"missing", "graded"}:
-                continue
-
-            if status in {
+            if item.get("status") in {
                 "open",
                 "not_enabled_yet",
                 "submitted",
                 "submitted_pending",
                 "open_no_due_date",
             }:
-                results.append(a)
+                results.append(item)
 
         return results
 
     def _filter_progress_assignments(self, assignments: list[dict]) -> list[dict]:
-        return [a for a in assignments if a.get("status") != "hidden" or a.get("max_score") is not None]
+        return [item for item in assignments if item.get("status") != "hidden"]
 
     def _parse_dt(self, value: str | None):
         if not value:
