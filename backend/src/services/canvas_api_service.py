@@ -14,7 +14,9 @@ class CanvasAPIService:
     def __init__(self) -> None:
         self.base_url = CANVAS_BASE_URL.rstrip("/")
         self.session = requests.Session()
+        self._current_user_cache: dict | None = None
         self._current_user_id_cache: str | None = None
+        self._current_user_name_cache: str | None = None
         self.session.headers.update(
             {
                 "Authorization": f"Bearer {CANVAS_API_TOKEN}",
@@ -69,17 +71,54 @@ class CanvasAPIService:
         response.raise_for_status()
 
 
+    def get_current_user_profile(self) -> dict:
+        if self._current_user_cache is not None:
+            return dict(self._current_user_cache)
+
+        try:
+            user = self.validate_connection()
+        except Exception:
+            return {}
+
+        if not isinstance(user, dict):
+            return {}
+
+        user_id = user.get("id")
+        display_name = (
+            user.get("name")
+            or user.get("short_name")
+            or user.get("sortable_name")
+        )
+
+        profile = {
+            "id": str(user_id) if user_id is not None else None,
+            "name": str(display_name).strip() if display_name else None,
+        }
+
+        self._current_user_cache = profile
+        self._current_user_id_cache = profile.get("id")
+        self._current_user_name_cache = profile.get("name")
+        return dict(profile)
+
     def get_current_user_id(self) -> str | None:
         if self._current_user_id_cache:
             return self._current_user_id_cache
-        try:
-            user = self.validate_connection()
-            user_id = user.get("id") if isinstance(user, dict) else None
-            if user_id is not None:
-                self._current_user_id_cache = str(user_id)
-            return self._current_user_id_cache
-        except Exception:
-            return None
+
+        profile = self.get_current_user_profile()
+        user_id = profile.get("id")
+        if user_id:
+            self._current_user_id_cache = str(user_id)
+        return self._current_user_id_cache
+
+    def get_current_user_name(self) -> str | None:
+        if self._current_user_name_cache:
+            return self._current_user_name_cache
+
+        profile = self.get_current_user_profile()
+        display_name = profile.get("name")
+        if display_name:
+            self._current_user_name_cache = str(display_name)
+        return self._current_user_name_cache
 
     def get_assignment_submission_detail_grade(self, course_id: str, assignment_id: str) -> dict:
         """
@@ -231,6 +270,40 @@ class CanvasAPIService:
         )
         return self._normalize_assignment_payload(course_id, course_name, course_url, item)
 
+    def get_discussion_topics_for_course(
+        self,
+        course_id: str,
+        course_name: str,
+        course_url: str,
+    ) -> list[dict]:
+        data = self._get_paginated(
+            f"/api/v1/courses/{course_id}/discussion_topics",
+            params={
+                "include_assignment": "true",
+                "include[]": ["all_dates", "overrides"],
+                "exclude_assignment_descriptions": "true",
+                "plain_messages": "true",
+                "per_page": 100,
+            },
+        )
+
+        return [
+            self._normalize_discussion_topic_payload(
+                course_id=course_id,
+                course_name=course_name,
+                course_url=course_url,
+                item=item,
+            )
+            for item in data
+            if isinstance(item, dict)
+        ]
+
+    def get_discussion_topic_view(self, course_id: str, topic_id: str) -> dict:
+        data = self._get(
+            f"/api/v1/courses/{course_id}/discussion_topics/{topic_id}/view"
+        )
+        return data if isinstance(data, dict) else {}
+
     def get_grade_page_payload_for_course(self, course_id: str) -> dict:
         """
         Canvas sometimes hides/mutes grades in the normal assignments API while the
@@ -282,6 +355,83 @@ class CanvasAPIService:
             "muted": bool(item.get("muted", False)),
             "omit_from_final_grade": bool(item.get("omit_from_final_grade", False)),
             "status": "unknown",
+        }
+
+    def _normalize_discussion_topic_payload(
+        self,
+        course_id: str,
+        course_name: str,
+        course_url: str,
+        item: dict,
+    ) -> dict:
+        assignment = item.get("assignment") or {}
+        discussion_id = item.get("id")
+        assignment_id = item.get("assignment_id") or assignment.get("id")
+        unread_count = item.get("unread_count")
+        reply_count = item.get("discussion_subentry_count")
+
+        try:
+            normalized_unread_count = max(0, int(unread_count or 0))
+        except (TypeError, ValueError):
+            normalized_unread_count = 0
+
+        try:
+            normalized_reply_count = max(0, int(reply_count or 0))
+        except (TypeError, ValueError):
+            normalized_reply_count = 0
+
+        discussion_url = item.get("html_url")
+        if not discussion_url and discussion_id is not None:
+            discussion_url = (
+                f"{self.base_url}/courses/{course_id}/discussion_topics/{discussion_id}"
+            )
+
+        return {
+            "course_id": str(course_id),
+            "course_name": course_name,
+            "course_url": course_url,
+            "discussion_id": str(discussion_id) if discussion_id is not None else None,
+            "discussion_title": item.get("title") or "Untitled discussion",
+            "discussion_url": discussion_url,
+            "assignment_id": str(assignment_id) if assignment_id is not None else None,
+            "due_date_iso": assignment.get("due_at") or item.get("lock_at"),
+            "unlock_at": assignment.get("unlock_at") or item.get("delayed_post_at"),
+            "lock_at": assignment.get("lock_at") or item.get("lock_at"),
+            "posted_at": item.get("posted_at"),
+            "last_reply_at": item.get("last_reply_at"),
+            "published": bool(item.get("published", False)),
+            "locked": bool(item.get("locked", False)),
+            "locked_for_user": bool(item.get("locked_for_user", False)),
+            "lock_explanation": item.get("lock_explanation"),
+            "read_state": item.get("read_state") or "read",
+            "unread_count": normalized_unread_count,
+            "reply_count": normalized_reply_count,
+            "require_initial_post": bool(item.get("require_initial_post", False)),
+            "user_can_see_posts": item.get("user_can_see_posts"),
+            "pinned": bool(item.get("pinned", False)),
+            "is_announcement": bool(item.get("is_announcement", False)),
+            "discussion_type": item.get("discussion_type"),
+            "group_category_id": (
+                str(item.get("group_category_id"))
+                if item.get("group_category_id") is not None
+                else None
+            ),
+            "root_topic_id": (
+                str(item.get("root_topic_id"))
+                if item.get("root_topic_id") is not None
+                else None
+            ),
+            "group_topic_children": item.get("group_topic_children") or [],
+            "points_possible": self._safe_float(assignment.get("points_possible")),
+            "assignment_published": bool(assignment.get("published", False)),
+            "assignment_workflow_state": assignment.get("workflow_state"),
+            "assignment_has_submitted_submissions": bool(
+                assignment.get("has_submitted_submissions", False)
+            ),
+            "submission_types": assignment.get("submission_types") or [],
+            "status": "unknown",
+            "item_type": "discussion",
+            "is_discussion": True,
         }
 
     def get_assignment_groups_for_course(self, course_id: str) -> list[dict]:

@@ -20,6 +20,7 @@ class ScrapingService:
 
     def __init__(self) -> None:
         self.canvas_api = CanvasAPIService()
+        self.last_discussion_errors: dict[str, str] = {}
 
     def get_courses(self) -> list[dict]:
         self.canvas_api.validate_connection()
@@ -73,6 +74,382 @@ class ScrapingService:
             assignments_by_course[course["course_id"]] = normalized
 
         return assignments_by_course
+
+    def get_discussions_by_course(
+        self,
+        courses: list[dict],
+        assignments_by_course: dict[str, list[dict]] | None = None,
+    ) -> dict[str, list[dict]]:
+        discussions_by_course: dict[str, list[dict]] = {}
+        assignments_by_course = assignments_by_course or {}
+        current_user = self.canvas_api.get_current_user_profile()
+        current_user_id = current_user.get("id")
+        current_user_name = current_user.get("name")
+        self.last_discussion_errors = {}
+
+        for course in courses:
+            course_id = str(course["course_id"])
+            assignments = assignments_by_course.get(course_id, [])
+            assignments_by_id = {
+                str(item.get("assignment_id")): item
+                for item in assignments
+                if item.get("assignment_id") is not None
+            }
+
+            try:
+                raw_topics = self.canvas_api.get_discussion_topics_for_course(
+                    course_id=course_id,
+                    course_name=course["course_name"],
+                    course_url=course["course_url"],
+                )
+            except Exception as exc:
+                self.last_discussion_errors[course_id] = str(exc)
+                discussions_by_course[course_id] = []
+                continue
+
+            normalized_topics: list[dict] = []
+            for topic in raw_topics:
+                assignment = assignments_by_id.get(str(topic.get("assignment_id")))
+                item = self._normalize_discussion_status(
+                    topic=topic,
+                    assignment=assignment,
+                    current_user_id=current_user_id,
+                    current_user_name=current_user_name,
+                )
+
+                if assignment is not None:
+                    self._attach_discussion_metadata_to_assignment(assignment, item)
+
+                normalized_topics.append(item)
+
+            discussions_by_course[course_id] = normalized_topics
+
+        return discussions_by_course
+
+    def _normalize_discussion_status(
+        self,
+        topic: dict,
+        assignment: dict | None,
+        current_user_id: str | None,
+        current_user_name: str | None,
+    ) -> dict:
+        now = datetime.now(timezone.utc)
+        item = dict(topic)
+
+        item["assignment_name"] = item.get("discussion_title")
+        item["assignment_url"] = item.get("discussion_url")
+        item["is_graded_discussion"] = bool(
+            assignment is not None or item.get("assignment_id")
+        )
+        item["requires_post"] = bool(
+            item.get("published") and not item.get("is_announcement")
+        )
+        item["participation_checked"] = False
+        item["participation_check_error"] = None
+        item["participation_source"] = None
+        item["user_has_posted"] = False
+        item["own_entry_id"] = None
+        item["own_posted_at"] = None
+        item["own_author_name"] = None
+
+        if assignment is not None:
+            item["due_date_iso"] = (
+                assignment.get("due_date_iso") or item.get("due_date_iso")
+            )
+            item["unlock_at"] = assignment.get("unlock_at") or item.get("unlock_at")
+            item["lock_at"] = assignment.get("lock_at") or item.get("lock_at")
+            item["points_possible"] = assignment.get("max_score")
+
+        assignment_proves_submission = bool(
+            assignment
+            and (
+                assignment.get("is_submitted")
+                or assignment.get("is_submitted_pending")
+                or assignment.get("submitted_at")
+            )
+        )
+
+        if assignment_proves_submission:
+            item["user_has_posted"] = True
+            item["participation_checked"] = True
+            item["participation_source"] = "assignment_submission"
+            item["own_posted_at"] = assignment.get("submitted_at")
+        elif item.get("requires_post"):
+            if not current_user_id and not current_user_name:
+                item["participation_check_error"] = (
+                    "Canvas current user could not be identified."
+                )
+            else:
+                try:
+                    view = self.canvas_api.get_discussion_topic_view(
+                        course_id=str(item["course_id"]),
+                        topic_id=str(item["discussion_id"]),
+                    )
+                    evidence = self._find_user_discussion_entry(
+                        payload=view,
+                        user_id=current_user_id,
+                        user_name=current_user_name,
+                    )
+                    item["participation_checked"] = True
+
+                    if evidence:
+                        item["user_has_posted"] = True
+                        item["participation_source"] = evidence.get("source")
+                        item["own_entry_id"] = evidence.get("entry_id")
+                        item["own_posted_at"] = evidence.get("posted_at")
+                        item["own_author_name"] = evidence.get("author_name")
+                except Exception as exc:
+                    item["participation_check_error"] = str(exc)
+
+        unlock_at = self._parse_dt(item.get("unlock_at"))
+        lock_at = self._parse_dt(item.get("lock_at"))
+        due_at = self._parse_dt(item.get("due_date_iso"))
+        unread_count = int(item.get("unread_count") or 0)
+        read_state = str(item.get("read_state") or "read").lower()
+        has_unread_activity = unread_count > 0 or read_state == "unread"
+        assignment_status = str((assignment or {}).get("status") or "").lower()
+
+        if not item.get("published"):
+            status = "hidden"
+        elif item.get("is_announcement"):
+            status = "info"
+        elif unlock_at and unlock_at > now:
+            status = "not_enabled_yet"
+        elif assignment_status == "not_enabled_yet" and not item.get("user_has_posted"):
+            status = "not_enabled_yet"
+        elif item.get("user_has_posted"):
+            status = "submitted"
+        elif item.get("participation_check_error"):
+            status = "verification_needed"
+        elif (
+            (lock_at and lock_at <= now)
+            or item.get("locked")
+            or item.get("locked_for_user")
+        ):
+            status = "missing"
+        elif item.get("requires_post"):
+            status = "needs_reply"
+        else:
+            status = "info"
+
+        item["status"] = status
+        item["has_unread_activity"] = has_unread_activity
+        item["has_updates"] = bool(
+            item.get("user_has_posted") and has_unread_activity
+        )
+        item["needs_action"] = status == "needs_reply"
+        item["is_missed"] = status == "missing"
+        item["needs_attention"] = item["needs_action"]
+
+        if status == "needs_reply":
+            attention_kind = "reply"
+        elif status == "not_enabled_yet":
+            attention_kind = "opens_soon"
+        elif status == "missing":
+            attention_kind = "missed"
+        elif status == "verification_needed":
+            attention_kind = "verification"
+        elif item["has_updates"]:
+            attention_kind = "new_activity"
+        else:
+            attention_kind = "none"
+        item["attention_kind"] = attention_kind
+
+        item["display_date_iso"] = (
+            item.get("due_date_iso")
+            or item.get("lock_at")
+            or item.get("own_posted_at")
+            or item.get("last_reply_at")
+            or item.get("posted_at")
+        )
+
+        item["priority_rank"] = self._discussion_priority_rank(
+            item=item,
+            due_at=due_at or lock_at,
+            now=now,
+        )
+
+        return item
+
+    def _find_user_discussion_entry(
+        self,
+        payload: dict,
+        user_id: str | None,
+        user_name: str | None,
+    ) -> dict | None:
+        target_user_id = str(user_id) if user_id else None
+        target_user_name = self._normalize_person_name(user_name)
+        stack = list(payload.get("view") or [])
+
+        while stack:
+            entry = stack.pop()
+            if not isinstance(entry, dict):
+                continue
+
+            entry_user_id = entry.get("user_id") or entry.get("author_id")
+            author_name = (
+                entry.get("user_name")
+                or entry.get("display_name")
+                or entry.get("author_name")
+                or entry.get("name")
+            )
+
+            id_matches = bool(
+                target_user_id
+                and entry_user_id is not None
+                and str(entry_user_id) == target_user_id
+            )
+            name_matches = bool(
+                target_user_name
+                and author_name
+                and self._normalize_person_name(author_name) == target_user_name
+            )
+
+            if id_matches or name_matches:
+                return {
+                    "entry_id": (
+                        str(entry.get("id"))
+                        if entry.get("id") is not None
+                        else None
+                    ),
+                    "user_id": (
+                        str(entry_user_id)
+                        if entry_user_id is not None
+                        else None
+                    ),
+                    "author_name": author_name,
+                    "posted_at": entry.get("created_at") or entry.get("updated_at"),
+                    "source": (
+                        "discussion_view_user_id"
+                        if id_matches
+                        else "discussion_view_user_name"
+                    ),
+                }
+
+            replies = entry.get("replies") or entry.get("recent_replies") or []
+            if isinstance(replies, list):
+                stack.extend(replies)
+
+        return None
+
+    def _normalize_person_name(self, value: str | None) -> str:
+        if not value:
+            return ""
+        return " ".join(str(value).casefold().split())
+
+    def _discussion_priority_rank(
+        self,
+        item: dict,
+        due_at,
+        now: datetime,
+    ) -> int:
+        if item.get("needs_action") and due_at:
+            hours = (due_at - now).total_seconds() / 3600
+            if hours <= 48:
+                return 0
+            if hours <= 168:
+                return 1
+            return 2
+
+        if item.get("needs_action"):
+            return 3
+
+        if item.get("status") == "not_enabled_yet":
+            return 4
+
+        if item.get("has_updates"):
+            return 5
+
+        if item.get("status") == "missing":
+            return 6
+
+        if item.get("status") == "verification_needed":
+            return 7
+
+        if item.get("user_has_posted"):
+            return 8
+
+        return 9
+
+    def _attach_discussion_metadata_to_assignment(
+        self,
+        assignment: dict,
+        discussion: dict,
+    ) -> None:
+        assignment.update(
+            {
+                "item_type": "discussion",
+                "is_discussion": True,
+                "discussion_id": discussion.get("discussion_id"),
+                "discussion_title": discussion.get("discussion_title"),
+                "discussion_url": discussion.get("discussion_url"),
+                "discussion_read_state": discussion.get("read_state"),
+                "discussion_unread_count": discussion.get("unread_count", 0),
+                "discussion_reply_count": discussion.get("reply_count", 0),
+                "discussion_require_initial_post": discussion.get(
+                    "require_initial_post",
+                    False,
+                ),
+                "discussion_user_has_posted": discussion.get("user_has_posted"),
+                "discussion_own_entry_id": discussion.get("own_entry_id"),
+                "discussion_has_updates": discussion.get("has_updates"),
+            }
+        )
+
+    def discussion_to_dashboard_assignment(self, discussion: dict) -> dict | None:
+        if discussion.get("is_graded_discussion"):
+            return None
+
+        discussion_status = discussion.get("status")
+        if discussion_status not in {"needs_reply", "not_enabled_yet"}:
+            return None
+
+        due_date_iso = discussion.get("due_date_iso") or discussion.get("lock_at")
+        if discussion_status == "not_enabled_yet":
+            dashboard_status = "not_enabled_yet"
+        elif due_date_iso:
+            dashboard_status = "open"
+        else:
+            dashboard_status = "open_no_due_date"
+
+        return {
+            "course_id": str(discussion.get("course_id") or ""),
+            "course_name": discussion.get("course_name"),
+            "course_url": discussion.get("course_url"),
+            "assignment_id": (
+                f"discussion-{discussion.get('course_id')}-{discussion.get('discussion_id')}"
+            ),
+            "assignment_name": discussion.get("discussion_title"),
+            "assignment_url": discussion.get("discussion_url"),
+            "assignment_group_id": None,
+            "due_date_iso": due_date_iso,
+            "unlock_at": discussion.get("unlock_at"),
+            "lock_at": discussion.get("lock_at"),
+            "published": bool(discussion.get("published")),
+            "locked_for_user": bool(discussion.get("locked_for_user")),
+            "workflow_state": "published",
+            "score": None,
+            "entered_score": None,
+            "grade": None,
+            "entered_grade": None,
+            "max_score": discussion.get("points_possible"),
+            "submitted_at": None,
+            "submission_workflow_state": "unsubmitted",
+            "missing": False,
+            "late": False,
+            "excused": False,
+            "muted": False,
+            "omit_from_final_grade": False,
+            "status": dashboard_status,
+            "item_type": "discussion",
+            "is_discussion": True,
+            "discussion_id": discussion.get("discussion_id"),
+            "discussion_title": discussion.get("discussion_title"),
+            "discussion_url": discussion.get("discussion_url"),
+            "discussion_status": discussion_status,
+            "discussion_user_has_posted": False,
+            "discussion_unread_count": discussion.get("unread_count", 0),
+        }
 
     def get_dashboard_assignments(self, courses: list[dict]) -> list[dict]:
         assignments_by_course = self.get_assignments_by_course(courses)
