@@ -13,6 +13,7 @@ import {
   Folder,
   GraduationCap,
   Lock,
+  MessageCircle,
   Moon,
   RefreshCw,
   Send,
@@ -48,7 +49,11 @@ const THEME_STORAGE_KEY = "athena_desk_theme";
 const REFRESH_DURATION_STORAGE_KEY =
   "athena_desk_refresh_duration_ms";
 
+const AUTH_DURATION_STORAGE_KEY =
+  "athena_desk_auth_duration_ms";
+
 const DEFAULT_REFRESH_DURATION_MS = 22000;
+const DEFAULT_AUTH_DURATION_MS = 30000;
 const MIN_REFRESH_DURATION_MS = 12000;
 const MAX_REFRESH_DURATION_MS = 45000;
 
@@ -109,36 +114,50 @@ function clampRefreshDuration(value) {
   );
 }
 
-function getExpectedRefreshDuration() {
+function getExpectedDuration(
+  storageKey,
+  fallbackDurationMs
+) {
   try {
     const stored = localStorage.getItem(
-      REFRESH_DURATION_STORAGE_KEY
+      storageKey
     );
 
     if (!stored) {
-      return DEFAULT_REFRESH_DURATION_MS;
+      return clampRefreshDuration(
+        fallbackDurationMs
+      );
     }
 
     return clampRefreshDuration(stored);
   } catch {
-    return DEFAULT_REFRESH_DURATION_MS;
+    return clampRefreshDuration(
+      fallbackDurationMs
+    );
   }
 }
 
-function saveObservedRefreshDuration(durationMs) {
+function saveObservedDuration(
+  storageKey,
+  durationMs,
+  fallbackDurationMs
+) {
   const observed =
     clampRefreshDuration(durationMs);
 
   try {
     const previous =
-      getExpectedRefreshDuration();
+      getExpectedDuration(
+        storageKey,
+        fallbackDurationMs
+      );
 
     const smoothed =
       previous * 0.7 +
       observed * 0.3;
 
     localStorage.setItem(
-      REFRESH_DURATION_STORAGE_KEY,
+      storageKey,
       String(
         Math.round(
           clampRefreshDuration(smoothed)
@@ -148,6 +167,36 @@ function saveObservedRefreshDuration(durationMs) {
   } catch {
     // Ignore storage errors.
   }
+}
+
+function getExpectedRefreshDuration() {
+  return getExpectedDuration(
+    REFRESH_DURATION_STORAGE_KEY,
+    DEFAULT_REFRESH_DURATION_MS
+  );
+}
+
+function saveObservedRefreshDuration(durationMs) {
+  saveObservedDuration(
+    REFRESH_DURATION_STORAGE_KEY,
+    durationMs,
+    DEFAULT_REFRESH_DURATION_MS
+  );
+}
+
+function getExpectedAuthDuration() {
+  return getExpectedDuration(
+    AUTH_DURATION_STORAGE_KEY,
+    DEFAULT_AUTH_DURATION_MS
+  );
+}
+
+function saveObservedAuthDuration(durationMs) {
+  saveObservedDuration(
+    AUTH_DURATION_STORAGE_KEY,
+    durationMs,
+    DEFAULT_AUTH_DURATION_MS
+  );
 }
 
 function calculateRefreshProgress(
@@ -486,6 +535,8 @@ function getStatusClass(value) {
       "not_enabled_yet",
       "not_enough_data",
       "no_due_date",
+      "needs_reply",
+      "unread",
     ].includes(normalized)
   ) {
     return "warning";
@@ -630,6 +681,11 @@ function SyncChip({
     sync?.status === "healthy" ||
     !sync?.status;
 
+  const guatemalaTimeLabel =
+    language === "es"
+      ? "Hora Guatemala"
+      : "Guatemala Time";
+
   return (
     <div
       className={`sync-chip ${
@@ -645,9 +701,11 @@ function SyncChip({
             : t("sync.issue")}
         </strong>
 
-        {lastSync ? (
-          <small>{lastSync}</small>
-        ) : null}
+        <small>
+          {lastSync
+            ? `${lastSync} · ${guatemalaTimeLabel}`
+            : guatemalaTimeLabel}
+        </small>
       </div>
     </div>
   );
@@ -696,7 +754,25 @@ function LoadingOverlay({
 function RefreshOverlay({
   progress,
   t,
+  title,
+  subtitle,
 }) {
+  const normalizedProgress = Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(
+        Number(progress) || 0
+      )
+    )
+  );
+
+  const resolvedTitle =
+    title ?? t("ui.refreshTitle");
+
+  const resolvedSubtitle =
+    subtitle ?? t("ui.refreshSubtitle");
+
   return (
     <div
       className="refresh-overlay"
@@ -708,28 +784,30 @@ function RefreshOverlay({
         <div
           className="refresh-orbit"
           style={{
-            "--refresh-progress": `${progress}%`,
+            "--refresh-progress": `${normalizedProgress}%`,
           }}
         >
           <div className="refresh-orbit-inner">
-            <span>{progress}%</span>
+            <span>
+              {normalizedProgress}%
+            </span>
           </div>
         </div>
 
         <div className="refresh-loader-copy">
           <strong>
-            {t("ui.refreshTitle")}
+            {resolvedTitle}
           </strong>
 
           <span>
-            {t("ui.refreshSubtitle")}
+            {resolvedSubtitle}
           </span>
         </div>
 
         <div className="refresh-loader-bar">
           <div
             style={{
-              width: `${progress}%`,
+              width: `${normalizedProgress}%`,
             }}
           />
         </div>
@@ -794,6 +872,15 @@ function StatsOverview({
       value: summary?.projects ?? 0,
       icon: Folder,
       tone: "amber",
+    },
+    {
+      label: t("stats.discussions"),
+      value:
+        summary?.discussions_actionable ??
+        summary?.discussions_needs_action ??
+        0,
+      icon: MessageCircle,
+      tone: "forum",
     },
     {
       label: t("stats.submitted"),
@@ -1646,7 +1733,11 @@ function AssignmentMiniList({
           .slice(0, 6)
           .map((item, index) => (
             <a
-              className="upcoming-item"
+              className={`upcoming-item ${
+                item.is_discussion
+                  ? "discussion-task"
+                  : ""
+              }`}
               key={`${
                 item.assignment_id ||
                 item.assignment_name
@@ -1676,8 +1767,17 @@ function AssignmentMiniList({
               </div>
 
               <div className="upcoming-copy">
-                <strong>
-                  {item.assignment_name}
+                <strong className="upcoming-title-row">
+                  {item.is_discussion ? (
+                    <MessageCircle
+                      size={14}
+                      aria-hidden="true"
+                    />
+                  ) : null}
+
+                  <span>
+                    {item.assignment_name}
+                  </span>
                 </strong>
 
                 <span>
@@ -1707,56 +1807,229 @@ function AssignmentMiniList({
   );
 }
 
-function AssignmentsColumn({
-  groups,
+function DiscussionPanel({
+  discussions,
   t,
   language,
 }) {
+  const pending =
+    discussions?.groups?.needs_action || [];
+
+  const hasPending = pending.length > 0;
+
+  const summaryText = hasPending
+    ? pending.length === 1
+      ? t("discussion.pendingSummaryOne")
+      : t("discussion.pendingSummaryMany", {
+          count: pending.length,
+        })
+    : t("discussion.emptySummary");
+
+  return (
+    <section
+      className={`side-panel discussion-panel ${
+        hasPending
+          ? "has-pending"
+          : "is-clear"
+      }`}
+    >
+      <div className="side-panel-header discussion-panel-header">
+        <div>
+          <h2>{t("discussion.title")}</h2>
+          <p>{summaryText}</p>
+        </div>
+
+        <div className="discussion-header-icon">
+          {hasPending ? (
+            <>
+              <MessageCircle size={21} />
+
+              <span className="discussion-header-count">
+                {pending.length > 99
+                  ? "99+"
+                  : pending.length}
+              </span>
+            </>
+          ) : (
+            <CheckCircle2 size={21} />
+          )}
+        </div>
+      </div>
+
+      {hasPending ? (
+        <div className="discussion-primary-content">
+          <div className="discussion-list">
+            {pending.map((item) => {
+              const dueDate =
+                item.due_date_iso ||
+                item.lock_at;
+
+              const metaText = dueDate
+                ? t("discussion.replyBy", {
+                    date: formatDateTime(
+                      dueDate,
+                      language
+                    ),
+                  })
+                : t(
+                    "discussion.replyNoDueDate"
+                  );
+
+              return (
+                <a
+                  className="discussion-item pending"
+                  key={`${item.course_id}-${item.discussion_id}`}
+                  href={
+                    item.discussion_url || "#"
+                  }
+                  target={
+                    item.discussion_url
+                      ? "_blank"
+                      : undefined
+                  }
+                  rel={
+                    item.discussion_url
+                      ? "noreferrer"
+                      : undefined
+                  }
+                >
+                  <div className="discussion-item-icon">
+                    <MessageCircle size={18} />
+                  </div>
+
+                  <div className="discussion-item-copy">
+                    <strong
+                      title={
+                        item.discussion_title
+                      }
+                    >
+                      {item.discussion_title}
+                    </strong>
+
+                    <span
+                      title={item.course_name}
+                    >
+                      {item.course_name}
+                    </span>
+
+                    <small>{metaText}</small>
+                  </div>
+
+                  <StatusBadge
+                    value="needs_reply"
+                    t={t}
+                  />
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="discussion-clear-state">
+          <div className="discussion-clear-icon">
+            <CheckCircle2 size={20} />
+          </div>
+
+          <div>
+            <strong>
+              {t("discussion.emptyTitle")}
+            </strong>
+
+            <span>
+              {t("discussion.emptyText")}
+            </span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AssignmentsColumn({
+  groups,
+  discussions,
+  t,
+  language,
+}) {
+  const assignmentItemsOnly = (items) =>
+    (items || []).filter(
+      (item) => !item?.is_discussion
+    );
+
+  const actNowItems = assignmentItemsOnly(
+    groups?.act_now
+  );
+  const thisWeekItems = assignmentItemsOnly(
+    groups?.this_week
+  );
+  const nextWeekItems = assignmentItemsOnly(
+    groups?.next_week
+  );
+  const opensSoonItems = assignmentItemsOnly(
+    groups?.opens_soon
+  );
+  const noDueDateItems = assignmentItemsOnly(
+    groups?.no_due_date
+  );
+  const submittedItems = assignmentItemsOnly(
+    groups?.submitted
+  );
+
   const hasAssignments =
-    (groups?.act_now?.length || 0) +
-      (groups?.this_week?.length ||
-        0) +
-      (groups?.next_week?.length ||
-        0) +
-      (groups?.opens_soon?.length ||
-        0) +
-      (groups?.submitted?.length ||
-        0) >
+    actNowItems.length +
+      thisWeekItems.length +
+      nextWeekItems.length +
+      opensSoonItems.length +
+      noDueDateItems.length +
+      submittedItems.length >
     0;
 
   return (
     <aside className="right-column">
       <AssignmentMiniList
         title={t("groups.actNow")}
-        items={groups?.act_now}
+        items={actNowItems}
         t={t}
         language={language}
       />
 
       <AssignmentMiniList
         title={t("groups.thisWeek")}
-        items={groups?.this_week}
+        items={thisWeekItems}
         t={t}
         language={language}
       />
 
       <AssignmentMiniList
         title={t("groups.nextWeek")}
-        items={groups?.next_week}
+        items={nextWeekItems}
         t={t}
         language={language}
       />
 
       <AssignmentMiniList
         title={t("groups.opensSoon")}
-        items={groups?.opens_soon}
+        items={opensSoonItems}
+        t={t}
+        language={language}
+      />
+
+      <AssignmentMiniList
+        title={t("groups.noDueDate")}
+        items={noDueDateItems}
+        t={t}
+        language={language}
+      />
+
+      <DiscussionPanel
+        discussions={discussions}
         t={t}
         language={language}
       />
 
       <AssignmentMiniList
         title={t("groups.submitted")}
-        items={groups?.submitted}
+        items={submittedItems}
         t={t}
         language={language}
       />
@@ -1802,9 +2075,17 @@ function RemindersStrip({
     ) ?? 0
   );
 
+  const discussionAttention =
+    Number(
+      summary?.discussions_actionable ??
+        summary?.discussions_needs_action ??
+        0
+    );
+
   if (
     atRisk === 0 &&
-    pending === 0
+    pending === 0 &&
+    discussionAttention === 0
   ) {
     return (
       <section className="reminders-strip success">
@@ -1843,11 +2124,22 @@ function RemindersStrip({
       language === "es"
         ? `${pending} nota(s) pendiente(s) por confirmar`
         : `${pending} pending grade(s) to confirm`;
-  } else {
+  } else if (atRisk > 0) {
     description =
       language === "es"
         ? `${atRisk} curso(s) en riesgo`
         : `${atRisk} course(s) at risk`;
+  }
+
+  if (discussionAttention > 0) {
+    const discussionText = t(
+      "reminders.discussions",
+      { count: discussionAttention }
+    );
+
+    description = description
+      ? `${description} · ${discussionText}`
+      : discussionText;
   }
 
   return (
@@ -1855,6 +2147,8 @@ function RemindersStrip({
       <div className="reminder-summary-icon">
         {atRisk > 0 ? (
           <AlertTriangle size={20} />
+        ) : discussionAttention > 0 ? (
+          <MessageCircle size={20} />
         ) : (
           <FileText size={20} />
         )}
@@ -2135,12 +2429,25 @@ export default function App() {
     setRefreshProgress,
   ] = useState(0);
 
+  const [
+    authProgress,
+    setAuthProgress,
+  ] = useState(0);
+
   const refreshStartedAtRef =
     useRef(null);
 
   const expectedRefreshDurationRef =
     useRef(
       DEFAULT_REFRESH_DURATION_MS
+    );
+
+  const authStartedAtRef =
+    useRef(null);
+
+  const expectedAuthDurationRef =
+    useRef(
+      DEFAULT_AUTH_DURATION_MS
     );
 
   const [error, setError] =
@@ -2226,11 +2533,25 @@ export default function App() {
       getStoredAccessKey();
 
     if (!existingKey) {
-      return;
+      return undefined;
     }
 
+    let cancelled = false;
+
     const bootstrap = async () => {
+      const requestStartedAt =
+        performance.now();
+
+      let requestSucceeded = false;
+
       try {
+        authStartedAtRef.current =
+          requestStartedAt;
+
+        expectedAuthDurationRef.current =
+          getExpectedAuthDuration();
+
+        setAuthProgress(2);
         setLoading(true);
         setError("");
         setAuthError("");
@@ -2238,13 +2559,42 @@ export default function App() {
         const payload =
           await getDashboard(false);
 
+        if (cancelled) {
+          return;
+        }
+
         setData(payload);
+        requestSucceeded = true;
+
+        saveObservedAuthDuration(
+          performance.now() -
+            requestStartedAt
+        );
+
+        setAuthProgress(100);
+
+        await new Promise((resolve) => {
+          window.setTimeout(
+            resolve,
+            350
+          );
+        });
+
+        if (cancelled) {
+          return;
+        }
+
         setIsUnlocked(true);
         scrollToTop();
       } catch {
+        if (cancelled) {
+          return;
+        }
+
         clearAccessKey();
         setIsUnlocked(false);
         setData(null);
+        setAuthProgress(0);
 
         setAuthError(
           t(
@@ -2252,12 +2602,76 @@ export default function App() {
           )
         );
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+
+          if (!requestSucceeded) {
+            setAuthProgress(0);
+          }
+
+          authStartedAtRef.current =
+            null;
+        }
       }
     };
 
     bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, [t]);
+
+  useEffect(() => {
+    if (
+      !loading ||
+      isUnlocked ||
+      authStartedAtRef.current ===
+        null
+    ) {
+      return undefined;
+    }
+
+    let animationFrameId = 0;
+
+    const updateProgress = (now) => {
+      const elapsed =
+        now -
+        authStartedAtRef.current;
+
+      const nextProgress =
+        calculateRefreshProgress(
+          elapsed,
+          expectedAuthDurationRef.current
+        );
+
+      setAuthProgress(
+        (current) =>
+          Math.max(
+            current,
+            nextProgress
+          )
+      );
+
+      animationFrameId =
+        window.requestAnimationFrame(
+          updateProgress
+        );
+    };
+
+    setAuthProgress(2);
+
+    animationFrameId =
+      window.requestAnimationFrame(
+        updateProgress
+      );
+
+    return () => {
+      window.cancelAnimationFrame(
+        animationFrameId
+      );
+    };
+  }, [loading, isUnlocked]);
 
   useEffect(() => {
     if (!refreshing) {
@@ -2396,7 +2810,19 @@ export default function App() {
   const unlock = async (
     key
   ) => {
+    const requestStartedAt =
+      performance.now();
+
+    let requestSucceeded = false;
+
     try {
+      authStartedAtRef.current =
+        requestStartedAt;
+
+      expectedAuthDurationRef.current =
+        getExpectedAuthDuration();
+
+      setAuthProgress(2);
       setLoading(true);
       setAuthError("");
       setError("");
@@ -2408,12 +2834,29 @@ export default function App() {
 
       storeAccessKey(key);
       setData(payload);
+      requestSucceeded = true;
+
+      saveObservedAuthDuration(
+        performance.now() -
+          requestStartedAt
+      );
+
+      setAuthProgress(100);
+
+      await new Promise((resolve) => {
+        window.setTimeout(
+          resolve,
+          350
+        );
+      });
+
       setIsUnlocked(true);
       scrollToTop();
     } catch {
       clearAccessKey();
       setIsUnlocked(false);
       setData(null);
+      setAuthProgress(0);
 
       setAuthError(
         t(
@@ -2422,6 +2865,13 @@ export default function App() {
       );
     } finally {
       setLoading(false);
+
+      if (!requestSucceeded) {
+        setAuthProgress(0);
+      }
+
+      authStartedAtRef.current =
+        null;
     }
   };
 
@@ -2453,14 +2903,17 @@ export default function App() {
         />
 
         {loading ? (
-          <LoadingOverlay
+          <RefreshOverlay
+            progress={
+              authProgress
+            }
             title={t(
               "ui.validatingTitle"
             )}
             subtitle={t(
               "ui.validatingSubtitle"
             )}
-            compact
+            t={t}
           />
         ) : null}
       </>
@@ -2611,6 +3064,9 @@ export default function App() {
             <AssignmentsColumn
               groups={
                 data?.groups
+              }
+              discussions={
+                data?.discussions
               }
               language={language}
               t={t}

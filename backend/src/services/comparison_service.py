@@ -71,6 +71,57 @@ class ComparisonService:
 
         return groups
 
+    def build_discussion_groups(self, discussions: list[dict]) -> dict:
+        groups = {
+            "needs_action": [],
+            "updates": [],
+            "submitted": [],
+            "missed": [],
+            "opens_soon": [],
+            "verification_needed": [],
+            "closed": [],
+        }
+
+        visible = [
+            dict(item)
+            for item in discussions
+            if item.get("status") != "hidden"
+            and not item.get("is_announcement")
+        ]
+
+        visible.sort(key=self._discussion_sort_key)
+
+        for discussion in visible:
+            status = discussion.get("status")
+
+            if status == "verification_needed":
+                groups["verification_needed"].append(discussion)
+            elif discussion.get("needs_action"):
+                groups["needs_action"].append(discussion)
+            elif status == "missing":
+                groups["missed"].append(discussion)
+            elif status == "not_enabled_yet":
+                groups["opens_soon"].append(discussion)
+            elif discussion.get("user_has_posted") and discussion.get("has_updates"):
+                groups["updates"].append(discussion)
+            elif discussion.get("user_has_posted"):
+                groups["submitted"].append(discussion)
+            else:
+                groups["closed"].append(discussion)
+
+        return groups
+
+    def _discussion_sort_key(self, item: dict) -> tuple:
+        priority = int(item.get("priority_rank") or 99)
+        date_value = (
+            item.get("due_date_iso")
+            or item.get("lock_at")
+            or item.get("last_reply_at")
+            or item.get("posted_at")
+            or "9999-12-31T23:59:59Z"
+        )
+        return (priority, str(date_value), str(item.get("discussion_title") or ""))
+
     def _is_project(self, name: str | None) -> bool:
         if not name:
             return False
