@@ -15,3 +15,9 @@ services:
         value: America/Guatemala
       - key: FRONTEND_ORIGIN
         sync: false
+      - key: ATHENA_REFRESH_MAX_WORKERS
+        value: 3
+      - key: ATHENA_COURSE_CACHE_FALLBACK
+        value: true
+      - key: ATHENA_REFRESH_METRICS
+        value: true

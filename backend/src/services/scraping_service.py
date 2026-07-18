@@ -10,7 +10,20 @@ from src.services.canvas_api_service import CanvasAPIService
 
 
 class ScrapingService:
-    TERM_PATTERN = re.compile(r"\b([12])(\d{4})-\d{4}-\d{3}-[A-Z]\b")
+    # Canvas course identifiers are not completely uniform. Both of these
+    # examples belong to the same semester:
+    #   22026-1900-040-A
+    #   22026-090-037-3
+    # The middle campus/program block may contain three or four digits and
+    # the section may be either a letter or a number.
+    TERM_PATTERN = re.compile(
+        r"\b([12])(\d{4})-\d{3,4}-\d{3}-[A-Z0-9]\b",
+        re.IGNORECASE,
+    )
+    COMPACT_TERM_PATTERN = re.compile(
+        r"\b([12])(\d{4})\d{3,4}\d{3}[A-Z0-9]\b",
+        re.IGNORECASE,
+    )
     ATTENDANCE_PATTERNS = [
         "roll call attendance",
         "asistencia",
@@ -18,9 +31,14 @@ class ScrapingService:
         "roll call",
     ]
 
-    def __init__(self) -> None:
-        self.canvas_api = CanvasAPIService()
+    def __init__(self, canvas_api: CanvasAPIService | None = None) -> None:
+        self.canvas_api = canvas_api or CanvasAPIService()
         self.last_discussion_errors: dict[str, str] = {}
+
+    def close(self) -> None:
+        close = getattr(self.canvas_api, "close", None)
+        if callable(close):
+            close()
 
     def get_courses(self) -> list[dict]:
         self.canvas_api.validate_connection()
@@ -34,46 +52,110 @@ class ScrapingService:
 
         return filtered
 
-    def get_assignments_by_course(self, courses: list[dict]) -> dict[str, list[dict]]:
-        assignments_by_course: dict[str, list[dict]] = {}
-
-        for course in courses:
-            grade_page_payload = self.canvas_api.get_grade_page_payload_for_course(course_id=course["course_id"])
-            raw_assignments = self.canvas_api.get_assignments_for_course(
-                course_id=course["course_id"],
-                course_name=course["course_name"],
-                course_url=course["course_url"],
+    def get_assignments_for_course(
+        self,
+        course: dict,
+        *,
+        grade_page_payload: dict | None = None,
+    ) -> list[dict]:
+        """Load and normalize one course without sharing mutable worker state."""
+        if grade_page_payload is None:
+            grade_page_payload = self.canvas_api.get_grade_page_payload_for_course(
+                course_id=course["course_id"]
             )
-            normalized = []
 
-            for assignment in raw_assignments:
-                assignment = self._merge_grade_page_data(assignment, grade_page_payload)
-                item = self._normalize_assignment_status(assignment)
+        raw_assignments = self.canvas_api.get_assignments_for_course(
+            course_id=course["course_id"],
+            course_name=course["course_name"],
+            course_url=course["course_url"],
+        )
+        normalized: list[dict] = []
 
-                if self._should_deep_check(item):
-                    try:
-                        detail = self.canvas_api.get_assignment_detail_for_course(
-                            course_id=course["course_id"],
-                            course_name=course["course_name"],
-                            course_url=course["course_url"],
-                            assignment_id=item["assignment_id"],
-                        )
-                        detail = self._merge_grade_page_data(detail, grade_page_payload)
-                        detail = self._normalize_assignment_status(detail)
-                        detail["detail_checked"] = True
-                        item = detail
-                    except Exception as exc:
-                        item["detail_checked"] = False
-                        item["detail_check_error"] = str(exc)
+        for assignment in raw_assignments:
+            assignment = self._merge_grade_page_data(
+                assignment,
+                grade_page_payload,
+            )
+            item = self._normalize_assignment_status(assignment)
 
-                    if item.get("score") is None and item.get("max_score") is not None:
-                        item = self._recover_grade_from_submission_detail(course, item)
+            if self._should_deep_check(item):
+                try:
+                    detail = self.canvas_api.get_assignment_detail_for_course(
+                        course_id=course["course_id"],
+                        course_name=course["course_name"],
+                        course_url=course["course_url"],
+                        assignment_id=item["assignment_id"],
+                    )
+                    detail = self._merge_grade_page_data(
+                        detail,
+                        grade_page_payload,
+                    )
+                    detail = self._normalize_assignment_status(detail)
+                    detail["detail_checked"] = True
+                    item = detail
+                except Exception as exc:
+                    item["detail_checked"] = False
+                    item["detail_check_error"] = str(exc)
 
-                normalized.append(item)
+                if item.get("score") is None and item.get("max_score") is not None:
+                    item = self._recover_grade_from_submission_detail(course, item)
 
-            assignments_by_course[course["course_id"]] = normalized
+            normalized.append(item)
 
-        return assignments_by_course
+        return normalized
+
+    def get_assignments_by_course(
+        self,
+        courses: list[dict],
+    ) -> dict[str, list[dict]]:
+        return {
+            str(course["course_id"]): self.get_assignments_for_course(course)
+            for course in courses
+        }
+
+    def get_discussions_for_course(
+        self,
+        course: dict,
+        assignments: list[dict],
+        *,
+        current_user: dict | None = None,
+    ) -> list[dict]:
+        current_user = (
+            self.canvas_api.get_current_user_profile()
+            if current_user is None
+            else current_user
+        )
+        current_user_id = current_user.get("id")
+        current_user_name = current_user.get("name")
+        course_id = str(course["course_id"])
+        assignments_by_id = {
+            str(item.get("assignment_id")): item
+            for item in assignments
+            if item.get("assignment_id") is not None
+        }
+
+        raw_topics = self.canvas_api.get_discussion_topics_for_course(
+            course_id=course_id,
+            course_name=course["course_name"],
+            course_url=course["course_url"],
+        )
+
+        normalized_topics: list[dict] = []
+        for topic in raw_topics:
+            assignment = assignments_by_id.get(str(topic.get("assignment_id")))
+            item = self._normalize_discussion_status(
+                topic=topic,
+                assignment=assignment,
+                current_user_id=current_user_id,
+                current_user_name=current_user_name,
+            )
+
+            if assignment is not None:
+                self._attach_discussion_metadata_to_assignment(assignment, item)
+
+            normalized_topics.append(item)
+
+        return normalized_topics
 
     def get_discussions_by_course(
         self,
@@ -83,48 +165,62 @@ class ScrapingService:
         discussions_by_course: dict[str, list[dict]] = {}
         assignments_by_course = assignments_by_course or {}
         current_user = self.canvas_api.get_current_user_profile()
-        current_user_id = current_user.get("id")
-        current_user_name = current_user.get("name")
         self.last_discussion_errors = {}
 
         for course in courses:
             course_id = str(course["course_id"])
-            assignments = assignments_by_course.get(course_id, [])
-            assignments_by_id = {
-                str(item.get("assignment_id")): item
-                for item in assignments
-                if item.get("assignment_id") is not None
-            }
-
             try:
-                raw_topics = self.canvas_api.get_discussion_topics_for_course(
-                    course_id=course_id,
-                    course_name=course["course_name"],
-                    course_url=course["course_url"],
+                discussions_by_course[course_id] = self.get_discussions_for_course(
+                    course,
+                    assignments_by_course.get(course_id, []),
+                    current_user=current_user,
                 )
             except Exception as exc:
                 self.last_discussion_errors[course_id] = str(exc)
                 discussions_by_course[course_id] = []
-                continue
-
-            normalized_topics: list[dict] = []
-            for topic in raw_topics:
-                assignment = assignments_by_id.get(str(topic.get("assignment_id")))
-                item = self._normalize_discussion_status(
-                    topic=topic,
-                    assignment=assignment,
-                    current_user_id=current_user_id,
-                    current_user_name=current_user_name,
-                )
-
-                if assignment is not None:
-                    self._attach_discussion_metadata_to_assignment(assignment, item)
-
-                normalized_topics.append(item)
-
-            discussions_by_course[course_id] = normalized_topics
 
         return discussions_by_course
+
+    def collect_course_data(
+        self,
+        course: dict,
+        *,
+        current_user: dict | None = None,
+    ) -> dict:
+        """Fetch all expensive data for one course using one grade-page read."""
+        course_id = str(course["course_id"])
+        grade_page_payload = self.canvas_api.get_grade_page_payload_for_course(
+            course_id=course_id
+        )
+        assignments = self.get_assignments_for_course(
+            course,
+            grade_page_payload=grade_page_payload,
+        )
+
+        discussion_error: str | None = None
+        try:
+            discussions = self.get_discussions_for_course(
+                course,
+                assignments,
+                current_user=current_user,
+            )
+        except Exception as exc:
+            discussion_error = str(exc)
+            discussions = []
+
+        assignment_groups = self.get_assignment_groups_for_course(
+            course,
+            grade_page_payload=grade_page_payload,
+        )
+
+        return {
+            "course_id": course_id,
+            "assignments": assignments,
+            "discussions": discussions,
+            "assignment_groups": assignment_groups,
+            "discussion_error": discussion_error,
+            "grade_page_available": bool(grade_page_payload.get("available")),
+        }
 
     def _normalize_discussion_status(
         self,
@@ -465,17 +561,34 @@ class ScrapingService:
             for course_id, assignments in assignments_by_course.items()
         }
 
-    def get_assignment_groups(self, courses: list[dict]) -> dict[str, list[dict]]:
-        assignment_groups_by_course: dict[str, list[dict]] = {}
+    def get_assignment_groups_for_course(
+        self,
+        course: dict,
+        *,
+        grade_page_payload: dict | None = None,
+    ) -> list[dict]:
+        groups = self.canvas_api.get_assignment_groups_for_course(
+            course_id=course["course_id"]
+        )
+        if grade_page_payload is None:
+            grade_page_payload = self.canvas_api.get_grade_page_payload_for_course(
+                course_id=course["course_id"]
+            )
+        if grade_page_payload.get("assignment_groups"):
+            groups = self._merge_grade_page_groups(
+                groups,
+                grade_page_payload.get("assignment_groups") or [],
+            )
+        return groups
 
-        for course in courses:
-            groups = self.canvas_api.get_assignment_groups_for_course(course_id=course["course_id"])
-            grade_payload = self.canvas_api.get_grade_page_payload_for_course(course_id=course["course_id"])
-            if grade_payload.get("assignment_groups"):
-                groups = self._merge_grade_page_groups(groups, grade_payload.get("assignment_groups") or [])
-            assignment_groups_by_course[course["course_id"]] = groups
-
-        return assignment_groups_by_course
+    def get_assignment_groups(
+        self,
+        courses: list[dict],
+    ) -> dict[str, list[dict]]:
+        return {
+            str(course["course_id"]): self.get_assignment_groups_for_course(course)
+            for course in courses
+        }
 
     def _recover_grade_from_submission_detail(self, course: dict, assignment: dict) -> dict:
         item = dict(assignment)
@@ -586,45 +699,93 @@ class ScrapingService:
 
     def _filter_current_term_courses(self, courses: list[dict]) -> list[dict]:
         """
-        Goal:
-        Keep only courses from the current semester.
+        Keep only courses from the latest semester while preserving every
+        course that Canvas places in that same term.
 
         Priority:
-        1. Use semester/year inferred from course_name/course_code
-        2. If that fails, use Canvas term.id
-        3. If that fails, use available courses only
+        1. Infer the latest semester/year from course_name or course_code.
+        2. Expand that selection to every course sharing the matching
+           Canvas ``term.id``. This prevents one irregular course code from
+           disappearing while its classmates remain visible.
+        3. If no semester/year can be inferred, choose the most recent
+           Canvas term bucket.
+        4. If Canvas provides no term metadata, return all available courses.
         """
         available_courses = [
-            course for course in courses
-            if (course.get("workflow_state") or "").lower() in {"available", "unpublished", "completed"}
+            course
+            for course in courses
+            if (course.get("workflow_state") or "").lower()
+            in {"available", "unpublished", "completed"}
         ]
 
         if not available_courses:
             return courses
 
-        # 1) Best source for your case: infer semester/year from course code or name
-        tagged_by_regex: list[tuple[tuple[int, int], dict]] = []
+        tagged_courses: list[tuple[tuple[int, int], dict]] = []
         for course in available_courses:
             key = self._extract_term_key(course)
-            if key:
-                tagged_by_regex.append((key, course))
+            if key is not None:
+                tagged_courses.append((key, course))
 
-        if tagged_by_regex:
-            latest_key = max(term_key for term_key, _ in tagged_by_regex)
-            regex_filtered = [course for term_key, course in tagged_by_regex if term_key == latest_key]
-            if regex_filtered:
-                return regex_filtered
+        if tagged_courses:
+            latest_key = max(term_key for term_key, _ in tagged_courses)
+            latest_tagged_courses = [
+                course
+                for term_key, course in tagged_courses
+                if term_key == latest_key
+            ]
 
-        # 2) Fallback: use Canvas term.id groups
+            # Canvas already tells us which academic term owns each course.
+            # Once the latest semester has been identified, include every
+            # available course from those term IDs, even when one course has
+            # a malformed or nonstandard code.
+            latest_term_ids = {
+                str(term_id)
+                for course in latest_tagged_courses
+                for term_id in [self._get_canvas_term_id(course)]
+                if term_id is not None
+            }
+
+            if latest_term_ids:
+                expanded_courses = [
+                    course
+                    for course in available_courses
+                    if (
+                        self._get_canvas_term_id(course) is not None
+                        and str(self._get_canvas_term_id(course))
+                        in latest_term_ids
+                    )
+                ]
+
+                # Keep parsed courses that have no Canvas term ID so that a
+                # missing metadata field does not make a valid course vanish.
+                expanded_ids = {
+                    str(course.get("course_id") or course.get("id") or "")
+                    for course in expanded_courses
+                }
+                for course in latest_tagged_courses:
+                    course_id = str(
+                        course.get("course_id")
+                        or course.get("id")
+                        or ""
+                    )
+                    if course_id not in expanded_ids:
+                        expanded_courses.append(course)
+                        expanded_ids.add(course_id)
+
+                if expanded_courses:
+                    return expanded_courses
+
+            if latest_tagged_courses:
+                return latest_tagged_courses
+
         buckets_by_term_id: dict[str, list[dict]] = {}
         for course in available_courses:
-            term = course.get("term") or {}
-            term_id = term.get("id")
+            term_id = self._get_canvas_term_id(course)
             if term_id is not None:
                 buckets_by_term_id.setdefault(str(term_id), []).append(course)
 
         if buckets_by_term_id:
-            # Prefer the group with the most recent course dates, then largest size
             ranked = []
             for term_id, grouped_courses in buckets_by_term_id.items():
                 ranked.append(
@@ -638,8 +799,14 @@ class ScrapingService:
             ranked.sort(reverse=True)
             return ranked[0][3]
 
-        # 3) Final fallback
         return available_courses
+
+    @staticmethod
+    def _get_canvas_term_id(course: dict) -> object | None:
+        term = course.get("term") or {}
+        if not isinstance(term, dict):
+            return None
+        return term.get("id")
 
     def _best_course_date_key(self, grouped_courses: list[dict]) -> str:
         values = []
@@ -651,17 +818,31 @@ class ScrapingService:
 
     def _extract_term_key(self, course: dict) -> Optional[tuple[int, int]]:
         """
-        Returns (year, semester)
-        Example:
-        12026-1900-032-B -> (2026, 1)
-        22026-1900-038-A -> (2026, 2)
+        Return ``(year, semester)`` from either the display name or the
+        compact Canvas course code.
+
+        Supported examples:
+        - ``12026-1900-032-B`` -> ``(2026, 1)``
+        - ``22026-1900-038-A`` -> ``(2026, 2)``
+        - ``22026-090-037-3``  -> ``(2026, 2)``
+        - ``220260900373``     -> ``(2026, 2)``
         """
-        for text in [course.get("course_name") or "", course.get("course_code") or ""]:
-            match = self.TERM_PATTERN.search(text)
-            if match:
-                semester = int(match.group(1))
-                year = int(match.group(2))
-                return (year, semester)
+        values = [
+            course.get("course_name") or "",
+            course.get("course_code") or "",
+        ]
+
+        for text in values:
+            normalized = str(text).strip().upper()
+            for pattern in (
+                self.TERM_PATTERN,
+                self.COMPACT_TERM_PATTERN,
+            ):
+                match = pattern.search(normalized)
+                if match:
+                    semester = int(match.group(1))
+                    year = int(match.group(2))
+                    return (year, semester)
 
         return None
 
