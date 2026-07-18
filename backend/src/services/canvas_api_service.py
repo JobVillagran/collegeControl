@@ -6,6 +6,8 @@ import re
 from urllib.parse import urljoin
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from config.settings import CANVAS_BASE_URL, CANVAS_API_TOKEN
 
@@ -17,6 +19,25 @@ class CanvasAPIService:
         self._current_user_cache: dict | None = None
         self._current_user_id_cache: str | None = None
         self._current_user_name_cache: str | None = None
+
+        retry_policy = Retry(
+            total=2,
+            connect=2,
+            read=2,
+            status=2,
+            backoff_factor=0.35,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=frozenset({"GET"}),
+            respect_retry_after_header=True,
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(
+            max_retries=retry_policy,
+            pool_connections=4,
+            pool_maxsize=4,
+        )
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
         self.session.headers.update(
             {
                 "Authorization": f"Bearer {CANVAS_API_TOKEN}",
@@ -83,22 +104,8 @@ class CanvasAPIService:
         if not isinstance(user, dict):
             return {}
 
-        user_id = user.get("id")
-        display_name = (
-            user.get("name")
-            or user.get("short_name")
-            or user.get("sortable_name")
-        )
-
-        profile = {
-            "id": str(user_id) if user_id is not None else None,
-            "name": str(display_name).strip() if display_name else None,
-        }
-
-        self._current_user_cache = profile
-        self._current_user_id_cache = profile.get("id")
-        self._current_user_name_cache = profile.get("name")
-        return dict(profile)
+        self._cache_current_user(user)
+        return dict(self._current_user_cache or {})
 
     def get_current_user_id(self) -> str | None:
         if self._current_user_id_cache:
@@ -203,7 +210,34 @@ class CanvasAPIService:
         return None
 
     def validate_connection(self) -> dict:
-        return self._get("/api/v1/users/self")
+        user = self._get("/api/v1/users/self")
+        if isinstance(user, dict):
+            self._cache_current_user(user)
+        return user
+
+    def close(self) -> None:
+        self.session.close()
+
+    def __enter__(self) -> "CanvasAPIService":
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        self.close()
+
+    def _cache_current_user(self, user: dict) -> None:
+        user_id = user.get("id")
+        display_name = (
+            user.get("name")
+            or user.get("short_name")
+            or user.get("sortable_name")
+        )
+        profile = {
+            "id": str(user_id) if user_id is not None else None,
+            "name": str(display_name).strip() if display_name else None,
+        }
+        self._current_user_cache = profile
+        self._current_user_id_cache = profile.get("id")
+        self._current_user_name_cache = profile.get("name")
 
     def get_courses(self) -> list[dict]:
         data = self._get_paginated(

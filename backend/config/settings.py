@@ -10,9 +10,32 @@ ENV_FILE = BASE_DIR / ".env"
 
 load_dotenv(ENV_FILE)
 
+
+def _env_int(name: str, default: int, *, minimum: int, maximum: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+
+    return max(minimum, min(maximum, value))
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name, "").strip().casefold()
+    if not raw:
+        return default
+    return raw in {"1", "true", "yes", "on"}
+
+
 DATA_DIR = BASE_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
+COURSE_CACHE_DIR = CACHE_DIR / "courses"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+COURSE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 CANVAS_BASE_URL = os.getenv("CANVAS_BASE_URL", "").strip()
 CANVAS_API_TOKEN = os.getenv("CANVAS_API_TOKEN", "").strip()
@@ -33,9 +56,27 @@ FRONTEND_ORIGINS = [
     if origin.strip()
 ]
 
-DASHBOARD_CACHE_FILE = BASE_DIR / "data" / "cache" / "dashboard_cache.json"
-SYNC_STATUS_FILE = BASE_DIR / "data" / "cache" / "sync_status.json"
+DASHBOARD_CACHE_FILE = CACHE_DIR / "dashboard_cache.json"
+SYNC_STATUS_FILE = CACHE_DIR / "sync_status.json"
 COURSE_RULES_FILE = BASE_DIR / "config" / "course_rules.json"
+
+# Refresh scalability controls. Defaults are deliberately conservative for
+# Canvas and Render's free plan. The values are clamped to prevent accidental
+# request storms.
+ATHENA_REFRESH_MAX_WORKERS = _env_int(
+    "ATHENA_REFRESH_MAX_WORKERS",
+    3,
+    minimum=1,
+    maximum=8,
+)
+ATHENA_COURSE_CACHE_FALLBACK = _env_bool(
+    "ATHENA_COURSE_CACHE_FALLBACK",
+    True,
+)
+ATHENA_REFRESH_METRICS = _env_bool(
+    "ATHENA_REFRESH_METRICS",
+    True,
+)
 
 DEFAULT_PASSING_SCORE = int(os.getenv("DEFAULT_PASSING_SCORE", "61"))
 DEFAULT_ZONE_POINTS = int(os.getenv("DEFAULT_ZONE_POINTS", "35"))
