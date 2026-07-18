@@ -41,7 +41,10 @@ class ScrapingService:
             close()
 
     def get_courses(self) -> list[dict]:
-        self.canvas_api.validate_connection()
+        # Do not perform a separate /users/self request before /courses.
+        # The courses request already validates the token and connectivity.
+        # Removing the duplicate call reduces cold-start latency and avoids
+        # failing the entire refresh before course discovery begins.
         all_courses = self.canvas_api.get_courses()
         if not all_courses:
             raise RuntimeError("No courses returned by Canvas API.")

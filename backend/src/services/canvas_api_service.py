@@ -9,7 +9,13 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from config.settings import CANVAS_BASE_URL, CANVAS_API_TOKEN
+from config.settings import (
+    CANVAS_API_TOKEN,
+    CANVAS_BASE_URL,
+    CANVAS_CONNECT_TIMEOUT_SECONDS,
+    CANVAS_PROFILE_READ_TIMEOUT_SECONDS,
+    CANVAS_READ_TIMEOUT_SECONDS,
+)
 
 
 class CanvasAPIService:
@@ -23,7 +29,7 @@ class CanvasAPIService:
         retry_policy = Retry(
             total=2,
             connect=2,
-            read=2,
+            read=0,
             status=2,
             backoff_factor=0.35,
             status_forcelist=(429, 500, 502, 503, 504),
@@ -44,20 +50,46 @@ class CanvasAPIService:
                 "Accept": "application/json",
             }
         )
+        self.request_timeout = (
+            CANVAS_CONNECT_TIMEOUT_SECONDS,
+            CANVAS_READ_TIMEOUT_SECONDS,
+        )
+        self.profile_timeout = (
+            CANVAS_CONNECT_TIMEOUT_SECONDS,
+            min(
+                CANVAS_READ_TIMEOUT_SECONDS,
+                CANVAS_PROFILE_READ_TIMEOUT_SECONDS,
+            ),
+        )
 
     def _build_url(self, path: str) -> str:
         return urljoin(f"{self.base_url}/", path.lstrip("/"))
 
-    def _get(self, path: str, params: dict | None = None) -> list | dict:
+    def _get(
+        self,
+        path: str,
+        params: dict | None = None,
+        *,
+        timeout: tuple[int, int] | int | float | None = None,
+    ) -> list | dict:
         url = self._build_url(path)
-        response = self.session.get(url, params=params, timeout=30)
+        response = self.session.get(
+            url,
+            params=params,
+            timeout=timeout or self.request_timeout,
+        )
         self._raise_canvas_errors(response, url)
         return response.json()
 
     def _get_text(self, path: str, params: dict | None = None) -> str:
         url = self._build_url(path)
         headers = {"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
-        response = self.session.get(url, params=params, headers=headers, timeout=30)
+        response = self.session.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=self.request_timeout,
+        )
         self._raise_canvas_errors(response, url)
         return response.text
 
@@ -68,7 +100,11 @@ class CanvasAPIService:
         results: list[dict] = []
 
         while next_url:
-            response = self.session.get(next_url, params=next_params, timeout=30)
+            response = self.session.get(
+                next_url,
+                params=next_params,
+                timeout=self.request_timeout,
+            )
             self._raise_canvas_errors(response, next_url)
             data = response.json()
 
@@ -97,7 +133,7 @@ class CanvasAPIService:
             return dict(self._current_user_cache)
 
         try:
-            user = self.validate_connection()
+            user = self.validate_connection(timeout=self.profile_timeout)
         except Exception:
             return {}
 
@@ -209,8 +245,15 @@ class CanvasAPIService:
 
         return None
 
-    def validate_connection(self) -> dict:
-        user = self._get("/api/v1/users/self")
+    def validate_connection(
+        self,
+        *,
+        timeout: tuple[int, int] | int | float | None = None,
+    ) -> dict:
+        user = self._get(
+            "/api/v1/users/self",
+            timeout=timeout,
+        )
         if isinstance(user, dict):
             self._cache_current_user(user)
         return user

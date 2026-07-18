@@ -39,6 +39,29 @@ COURSE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 CANVAS_BASE_URL = os.getenv("CANVAS_BASE_URL", "").strip()
 CANVAS_API_TOKEN = os.getenv("CANVAS_API_TOKEN", "").strip()
+
+# Fail fast on a stalled upstream connection. Status-code retries remain enabled,
+# but socket read timeouts are not retried because three 30-second reads can
+# make a single frontend request hang for roughly 90 seconds.
+CANVAS_CONNECT_TIMEOUT_SECONDS = _env_int(
+    "CANVAS_CONNECT_TIMEOUT_SECONDS",
+    5,
+    minimum=1,
+    maximum=30,
+)
+CANVAS_READ_TIMEOUT_SECONDS = _env_int(
+    "CANVAS_READ_TIMEOUT_SECONDS",
+    20,
+    minimum=5,
+    maximum=120,
+)
+CANVAS_PROFILE_READ_TIMEOUT_SECONDS = _env_int(
+    "CANVAS_PROFILE_READ_TIMEOUT_SECONDS",
+    8,
+    minimum=2,
+    maximum=30,
+)
+
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "America/Guatemala").strip()
 
 APP_ACCESS_KEY = os.getenv("APP_ACCESS_KEY", "").strip()
