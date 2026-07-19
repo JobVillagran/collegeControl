@@ -39,7 +39,9 @@ async function request(path, options = {}) {
         detail = `${detail} - ${data.detail}`;
       }
     } catch (_) {}
-    throw new Error(detail);
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
   }
 
   return response.json();
@@ -61,7 +63,9 @@ export async function validateAccessKey(candidateKey) {
         detail = `${detail} - ${data.detail}`;
       }
     } catch (_) {}
-    throw new Error(detail);
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
   }
 
   return response.json();

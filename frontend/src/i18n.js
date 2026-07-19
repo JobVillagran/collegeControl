@@ -91,6 +91,7 @@ const DICTIONARY = {
     "error.invalidKey": "Invalid access key.",
     "error.invalidKeyRetry": "Invalid access key. Please try again.",
     "error.dashboardLoad": "Failed to load dashboard.",
+    "error.canvasUnavailable": "Your access key was accepted, but Athena cannot load Canvas data right now.",
 
     "sync.healthy": "Sync healthy",
     "sync.issue": "Sync issue",
@@ -314,6 +315,7 @@ const DICTIONARY = {
     "error.invalidKeyRetry":
       "Llave de acceso inválida. Intenta nuevamente.",
     "error.dashboardLoad": "No se pudo cargar el dashboard.",
+    "error.canvasUnavailable": "Tu llave fue aceptada, pero Athena no puede cargar los datos de Canvas en este momento.",
 
     "sync.healthy": "Sincronización correcta",
     "sync.issue": "Problema de sincronización",

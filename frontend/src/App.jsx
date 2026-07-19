@@ -2852,17 +2852,28 @@ export default function App() {
 
       setIsUnlocked(true);
       scrollToTop();
-    } catch {
+    } catch (err) {
       clearAccessKey();
       setIsUnlocked(false);
       setData(null);
       setAuthProgress(0);
 
-      setAuthError(
-        t(
-          "error.invalidKeyRetry"
-        )
-      );
+      if (
+        err?.status === 401 ||
+        err?.status === 403
+      ) {
+        setAuthError(
+          t(
+            "error.invalidKeyRetry"
+          )
+        );
+      } else {
+        setAuthError(
+          t(
+            "error.canvasUnavailable"
+          )
+        );
+      }
     } finally {
       setLoading(false);
 
